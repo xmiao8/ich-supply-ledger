@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ICH Supply Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column ledger — header, filter bar, summary figures, two charts, staples + prices, full purchase table */
+:root{
+  --bg:#f7f8f6; --surface:#fdfdfc; --ink:#16181a; --ink-2:#4d524f; --ink-3:#7c817d;
+  --rule:#dfe3df; --grid:#eceeeb; --accent:#5b3d8f; --accent-soft:#ece6f6; --gap:#eef0ec;
+  --good:#0a7d0a; --warn-bg:#fff4dc; --warn-ink:#7a5200; --ret:#b42f2f;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141615; --surface:#1b1d1c; --ink:#f2f3f1; --ink-2:#c1c5c0; --ink-3:#8d928d;
+  --rule:#2e322f; --grid:#262927; --accent:#b9a3ea; --accent-soft:#2c2540; --gap:#222523;
+  --good:#3fbf3f; --warn-bg:#3a2e12; --warn-ink:#f2c661; --ret:#ef7b7b;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141615; --surface:#1b1d1c; --ink:#f2f3f1; --ink-2:#c1c5c0; --ink-3:#8d928d;
+  --rule:#2e322f; --grid:#262927; --accent:#b9a3ea; --accent-soft:#2c2540; --gap:#222523;
+  --good:#3fbf3f; --warn-bg:#3a2e12; --warn-ink:#f2c661; --ret:#ef7b7b;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:28px 56px;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-0.01em}
+h1{font-size:clamp(28px,5vw,44px);font-weight:800;line-height:1.05}
+h2{font-size:20px;font-weight:600}
+h3{font-size:16px;font-weight:600}
+p{margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--ink-2);max-width:68ch}
+.muted{color:var(--ink-3);font-size:13px}
+header{display:flex;flex-direction:column;gap:10px}
+.terms{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.term-tag{font-family:var(--f-mono);font-size:12px;border:1px solid var(--rule);border-radius:999px;padding:3px 10px;color:var(--ink-2);background:var(--surface)}
+
+/* filters */
+.filters{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;border-bottom:1px solid var(--rule);display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.fgroup{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.flabel{font-family:var(--f-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin-right:2px}
+.chip{font:inherit;font-size:13px;border:1px solid var(--rule);background:var(--surface);color:var(--ink-2);border-radius:999px;padding:4px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.chip:focus-visible,.search:focus-visible,th button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+.search{font:inherit;font-size:14px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:8px;padding:6px 10px;min-width:0;width:200px}
+.reset{font:inherit;font-size:13px;background:none;border:0;color:var(--accent);cursor:pointer;text-decoration:underline;padding:4px}
+.active-group{display:none}
+.active-group.on{display:inline-flex}
+
+/* figures */
+.figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+.fig{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.fig .v{font-family:var(--f-display);font-weight:800;font-size:clamp(22px,3.4vw,30px);font-variant-numeric:tabular-nums;line-height:1.1}
+.fig .k{font-size:13px;color:var(--ink-2)}
+@media (max-width:640px){.figs{grid-template-columns:minmax(0,1fr)}}
+
+section{display:flex;flex-direction:column;gap:12px;min-width:0}
+.sec-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 16px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:16px;min-width:0}
+.chartbox{position:relative;height:320px}
+.chartbox.tall{height:360px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--ink-2);margin-bottom:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.gapkey{display:inline-block;width:14px;height:10px;background:var(--gap);border:1px dashed var(--ink-3);border-radius:2px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:860px){.two{grid-template-columns:minmax(0,1fr)}}
+
+/* staples */
+.staple{display:flex;flex-direction:column;gap:10px}
+.staple .big{font-family:var(--f-display);font-weight:800;font-size:26px;line-height:1.1}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px;margin:0}
+.dl dt{color:var(--ink-3)}
+.dl dd{margin:0;font-variant-numeric:tabular-nums}
+.callout{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:8px 12px;font-size:14px}
+.callout b{font-weight:700}
+
+/* tables */
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600;background:var(--surface);position:sticky;top:0}
+th button{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.date{font-family:var(--f-mono);font-size:13px;white-space:nowrap;color:var(--ink-2)}
+td.item{min-width:220px}
+tr.ret td{color:var(--ink-3)}
+tr.ret td.item span.n{text-decoration:line-through}
+.pill{display:inline-block;font-size:11px;font-family:var(--f-mono);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+.pill.ret{color:var(--ret);border:1px solid var(--ret)}
+.pill.best{color:var(--good);border:1px solid var(--good)}
+.catdot{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;color:var(--ink-2)}
+.scrolltable{max-height:560px;overflow:auto}
+.price td:first-child{font-weight:700}
+footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);padding-top:14px;display:flex;flex-direction:column;gap:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header>
+  <span class="eyebrow">International Cooperative House · Supplies &amp; maintenance</span>
+  <h1>ICH Supply Ledger</h1>
+  <p class="lede">What the house buys to keep ICH running: cleaning supplies, paper goods, laundry, kitchen basics and repair parts, from Amazon, Zoro, Lowe's, Menards, Nassco, Home Depot and Costco. Filter by year, store or category, click a bar to drill in, and search the full list at the bottom.</p>
+  <div class="terms">
+    <span class="term-tag">Since Feb 2023</span>
+    <span class="term-tag">Paid from the house supplies &amp; maintenance accounts</span>
+    <span class="term-tag" id="dataStatus">Saved copy from Oct 1, 2026</span>
+  </div>
+</header>
+
+<div class="filters" role="region" aria-label="Filters">
+  <div class="fgroup" id="f-year"><span class="flabel">Year</span></div>
+  <div class="fgroup" id="f-store"><span class="flabel">Store</span></div>
+  <div class="fgroup" id="f-cat"><span class="flabel">Category</span></div>
+  <div class="fgroup">
+    <label class="flabel" for="q">Search</label>
+    <input id="q" class="search" type="search" placeholder="e.g. toilet paper, bulbs">
+    <button class="chip active-group" id="monthChip" aria-pressed="true" title="Show all months"></button>
+    <button class="chip active-group" id="groupChip" aria-pressed="true" title="Clear item filter"></button>
+    <button class="reset" id="reset" type="button">Reset</button>
+  </div>
+</div>
+
+<div class="figs" aria-live="polite">
+  <div class="fig"><span class="v" id="k-total">–</span><span class="k">spent</span></div>
+  <div class="fig"><span class="v" id="k-month">–</span><span class="k" id="k-month-l">per month on average</span></div>
+  <div class="fig"><span class="v" id="k-items">–</span><span class="k">items bought</span></div>
+</div>
+
+<section>
+  <div class="sec-head"><h2 id="chartTitle">Spending by month</h2><span class="muted"><span id="chartHint">Hover a month for the breakdown · click it to zoom in</span> <button class="reset" id="backBtn" type="button" hidden>← All months</button></span></div>
+  <div class="panel">
+    <div class="legend" id="catLegend"></div>
+    <div class="chartbox"><canvas id="monthly" role="img" aria-label="Stacked bar chart of monthly supply spending by category"></canvas></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Where the money goes</h2><span class="muted">Top 10 recurring items by total spent · hover for how often · click a bar to see those purchases</span></div>
+  <div class="panel"><div class="chartbox tall"><canvas id="top" role="img" aria-label="Bar chart of the ten items the house spends the most on"></canvas></div></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Every purchase</h2><span class="muted" id="rowcount"></span></div>
+  <div class="tablewrap scrolltable">
+    <table id="ledger">
+      <thead><tr>
+        <th><button data-k="0">Date</button></th>
+        <th><button data-k="1">Store</button></th>
+        <th><button data-k="2">Item</button></th>
+        <th class="num"><button data-k="3">Qty</button></th>
+        <th class="num"><button data-k="4">Total</button></th>
+        <th><button data-k="5">Category</button></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <p>Sources: Amazon order and returns exports for the house cards and the house Amazon account; Zoro, Lowe's, Menards, Nassco and Home Depot order histories. Totals include sales tax and fees. Returned items are left out.</p>
+  <p>Not included: toilet paper from the MCC office (Who Gives A Crap, until April 2025), most in-store purchases, and items bought through the food budget. Records are thinner before mid-2023, and Zoro only starts in January 2025, so older months may undercount what the house actually bought.</p>
+</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const DATA=[["2026-09-28","Home Depot","Xcluder stainless steel wool rodent control fill kit, 8 strips",1,34.99,"Other","",2026,0],["2026-09-27","Amazon","10Pcs Replacement Parts for Instant Pot Duo 8 Quart and Duo Plus 8Qt",1,8.54,"Repairs & lighting","",2026,0],["2026-09-07","Zoro","Tough Guy HE laundry detergent powder, 50 lb, unscented",2,85.05,"Laundry","Laundry detergent",2026,0],["2026-08-31","Amazon","Amazon Basics Birch Wood Clothespins with Strong Spring-Loaded Grip",2,7.06,"Laundry","",2026,0],["2026-08-31","Home Depot","Bar Keepers Friend cleanser & polish, 21 oz, 6-pack",1,14.21,"Cleaning","",2026,0],["2026-07-30","Amazon","Wetqueen Garbage Disposal Cleaner and Deodorizer Tablets",1,11.86,"Cleaning","",2026,0],["2026-07-28","Amazon","AmazonCommercial 2-Ply White Jumbo Roll Toilet Paper",1,30.03,"Paper goods","Toilet paper",2026,0],["2026-07-16","Amazon","SimpleNature Food Grade Mineral Oil",1,22.26,"Kitchen","",2026,0],["2026-07-16","Amazon","Zep Industrial Calcium and Lime Remover",1,76.82,"Cleaning","",2026,0],["2026-07-15","Amazon","Amazon Basics 24-Pack 9V Alkaline Batteries for Smoke Detector",1,23.46,"Other","Smoke detectors & batteries",2026,0],["2026-06-24","Amazon","AmazonCommercial 2-Ply Ultra Plus Toilet Paper",3,97.47,"Paper goods","Toilet paper",2026,0],["2026-06-20","Amazon","Jet Nozzle 2-in-1 High Pressure Power Washer Jet High Pressure Power W",1,12.99,"Other","",2026,0],["2026-06-18","Menards","Watts Pure H2O-F12 undersink carbon block water filter",1,30.57,"Kitchen","Water filters (Watts under-sink)",2026,0],["2026-06-18","Menards","Watts Pure H2O-F14 undersink sediment water filter",3,116.19,"Kitchen","Water filters (Watts under-sink)",2026,0],["2026-06-17","Amazon","WHK Rain Barrel Spigot Kit-Water Bucket Spigot Faucets-Water Spicket W",1,12.99,"Other","",2026,0],["2026-06-16","Lowe's","Utility Pro 13 gal scent-free white drawstring kitchen trash bags, 180 ct",2,39.96,"Kitchen","Trash bags",2026,0],["2026-06-16","Zoro","Tough Guy HE laundry detergent powder, 50 lb, unscented",2,89.65,"Laundry","Laundry detergent",2026,0],["2026-06-01","Amazon","Genuine Joe 02105CT Hand Soap Lotion Dispenser Refill 1Gal 4/CT Pink",1,39.29,"Cleaning","Hand soap",2026,0],["2026-06-01","Amazon","Hortsun 6 Pieces Motion Sensor Light Socket Smart Screw in Light Bulb",1,26.99,"Repairs & lighting","Motion-sensor sockets",2026,0],["2026-05-28","Amazon","8 Pack 25inch Drain Snake Clog Remover",1,5.99,"Repairs & lighting","",2026,0],["2026-05-28","Amazon","Teflon plumber's tape (8 rolls)",1,6.99,"Repairs & lighting","",2026,0],["2026-05-16","Amazon","HiMask KN95 Face Masks 50 Pack 5 Layer Dust Disposable Face Shield Bla",1,14.24,"Other","Face masks",2026,0],["2026-05-15","Amazon","AIDEA Non-Scratch Scrub Sponge",1,17.09,"Cleaning","Sponges & scrubbers",2026,0],["2026-05-14","Amazon","AmazonCommercial 2-Ply Ultra Plus Toilet Paper",3,102.64,"Paper goods","Toilet paper",2026,0],["2026-05-13","Amazon","Calyptus 50% Pure Concentrated Vinegar",1,33.99,"Cleaning","Vinegar",2026,0],["2026-05-13","Amazon","MOVELYST picture-hanging strips (60 pairs)",1,21.24,"Repairs & lighting","Picture hangers & hooks",2026,0],["2026-05-13","Amazon","Simple Green Pro Glass Cleaner 1 Gal",1,14.22,"Cleaning","",2026,0],["2026-05-13","Amazon","TIANBO FIRST Masking Tape 0.94 Inch Wide Thin White Painters Tape Beig",1,17.99,"Repairs & lighting","Masking tape",2026,0],["2026-04-25","Zoro","Arocep 5% cleaning vinegar, 1 gal",3,16.67,"Cleaning","Vinegar",2026,0],["2026-04-25","Zoro","Tough Guy HE laundry detergent powder, 50 lb, unscented",1,40.33,"Laundry","Laundry detergent",2026,0],["2026-04-20","Amazon","48 PCS Lint Traps Washing Machine Lint Trap Stainless Steel lint Snare",1,13.49,"Laundry","Lint / drain strainers",2026,0],["2026-04-15","Zoro","Tough Guy floor cleaner, 5 gal",1,59.8,"Cleaning","Floor cleaner & mops",2026,0],["2026-04-09","Amazon","ZEP Professional Sprayer Bottle",1,11.61,"Cleaning","Spray bottles",2026,0],["2026-04-09","Amazon","Zep New Bleach Resistant Professional Sprayer 2.0 Bottle 32 Ounces",2,7.08,"Cleaning","Spray bottles",2026,0],["2026-03-17","Amazon","VIVOSUN 4\" Flexible Aluminum Ducting",2,26.58,"Repairs & lighting","",2026,0],["2026-03-16","Amazon","Haidms 2 Pack Matte Black Door Knobs Interior Privacy",1,21.99,"Repairs & lighting","",2026,0],["2026-03-13","Amazon","Rust-Oleum 249087 Painter's Touch 2X Ultra Cover Spray Paint",1,5.96,"Repairs & lighting","",2026,0],["2026-03-06","Amazon","1000 Loads Mega Pack Laundry Detergent Sheets",1,23.39,"Laundry","Laundry detergent",2026,0],["2026-03-06","Amazon","50 Pack White KN95 Face Masks for Adults and Kids",1,13.45,"Other","Face masks",2026,0],["2026-03-06","Amazon","AmazonCommercial 2-Ply Ultra Plus Toilet Paper",2,67.98,"Paper goods","Toilet paper",2026,0],["2026-03-06","Amazon","EXPO Low Odor Dry Erase Markers Chisel Tip Assorted Fashion Colors 36",1,23.03,"Other","",2026,0],["2026-03-06","Amazon","ZEP Professional Sprayer Bottle",1,11.03,"Cleaning","Spray bottles",2026,0],["2026-03-06","Amazon","Zep New Bleach Resistant Professional Sprayer 2.0 Bottle 32 Ounces",1,6.73,"Cleaning","Spray bottles",2026,0],["2026-03-03","Amazon","ALIDE E14 Base 220V LED Candelabra Light Bulb 40W Equivalent",1,24.21,"Repairs & lighting","Light bulbs",2026,0],["2026-02-18","Amazon","Inspire Black Nitrile Gloves",1,43.29,"Other","Gloves",2026,0],["2026-02-16","Zoro","Dayton hand drum pump",3,12.11,"Kitchen","Drum / bucket pumps",2026,0],["2026-02-16","Zoro","Tough Guy HE laundry detergent powder, 50 lb, unscented",1,40.99,"Laundry","Laundry detergent",2026,0],["2026-02-10","Amazon","Printable white sticker labels (2\"x4\", 30 sheets)",1,6.55,"Other","",2026,0],["2026-02-10","Amazon","Pump for Gallon Jug & 5 Gallon Bucket",1,13.45,"Kitchen","Drum / bucket pumps",2026,0],["2026-02-04","Zoro","Marshalltown 12\" drywall taping knife",1,19.16,"Repairs & lighting","",2026,0],["2026-01-31","Amazon","ZEP Professional Sprayer Bottle",1,11.03,"Cleaning","Spray bottles",2026,0],["2026-01-30","Amazon","Amazon Basics A19 LED Light Bulbs 60 Watt Equivalent",1,15.84,"Repairs & lighting","Light bulbs",2026,0],["2026-01-30","Amazon","Amazon Basics Non-Dimmable LED Light Bulbs",1,16.97,"Repairs & lighting","Light bulbs",2026,0],["2026-01-30","Amazon","AmazonCommercial 1-Ply White Hardwound Paper Towels",3,44.8,"Paper goods","Paper towels",2026,0],["2026-01-30","Amazon","AmazonCommercial 2-Ply Ultra Plus Toilet Paper/Bath Tissue",2,63.72,"Paper goods","Toilet paper",2026,0],["2026-01-30","Amazon","Dawn PRO Heavy Duty Powerwash",1,20.66,"Cleaning","Dish soap",2026,0],["2026-01-26","Zoro","Simple Green all-purpose cleaner concentrate, 1 gal, 2-pack, unscented",1,26.32,"Cleaning","",2026,0],["2026-01-26","Zoro","Zep 32 oz professional sprayer",1,9.24,"Cleaning","Spray bottles",2026,0],["2026-01-26","Zoro","Zoro Select cleaning vinegar, 1 gal, 4-pack",1,14.05,"Cleaning","Vinegar",2026,0],["2026-01-19","Amazon","Ajax Powder Cleanser with Bleach",2,28.28,"Cleaning","Powder cleanser (Bon Ami/Ajax)",2026,0],["2026-01-12","Home Depot","Bemis elongated enameled wood toilet seat, white",2,37.12,"Repairs & lighting","",2026,0],["2026-01-05","Amazon","24 Pack Water Filters for Cuisinart Coffee Makers",1,13.49,"Kitchen","Coffee-maker water filters",2026,0],["2026-01-05","Amazon","AmazonCommercial 1-Ply White Hardwound Paper Towels",2,31.44,"Paper goods","Paper towels",2026,0],["2026-01-05","Amazon","AmazonCommercial 1-Ply White Hardwound Paper Towels",4,62.88,"Paper goods","Paper towels",2026,0],["2026-01-05","Amazon","Cuisinart Mesh Strainers",1,12.88,"Kitchen","",2026,0],["2026-01-05","Amazon","Kismile Small Electric Space Heater Ceramic Space Heater",1,19.99,"Other","",2026,0],["2026-01-05","Amazon","Lysol Multi-Surface Cleaner",1,51.62,"Cleaning","",2026,0],["2026-01-05","Amazon","Murphy Oil Soap Wood Cleaner",1,10.65,"Cleaning","",2026,0],["2026-01-05","Amazon","Paper Towel Holder Countertop",1,5.49,"Kitchen","",2026,0],["2026-01-05","Amazon","Reli. Tall Kitchen Drawstring Trash Bags 13 Gallon",1,47.99,"Kitchen","Trash bags",2026,0],["2026-01-05","Zoro","Kleen Handler 24 oz loop-end wet mop head refill",6,40.96,"Cleaning","Floor cleaner & mops",2026,0],["2026-01-05","Zoro","Libman Commercial 24\" push broom",1,17.92,"Cleaning","Brooms & dustpans",2026,0],["2025-12-26","Lowe's","Relax 60 W-eq A19 LED bulbs, soft white",1,22.98,"Repairs & lighting","Light bulbs",2025,0],["2025-12-22","Zoro","Tough Guy HE laundry detergent powder, 50 lb, unscented",2,77.46,"Laundry","Laundry detergent",2025,0],["2025-12-18","Amazon","AmazonCommercial 2-Ply Ultra Plus Toilet Paper/Bath Tissue",1,39.76,"Paper goods","Toilet paper",2025,0],["2025-12-18","Amazon","AmazonCommercial 2-Ply White 9' Jumbo Roll Toilet Paper/Bath Tissue",1,32.14,"Paper goods","Toilet paper",2025,0],["2025-12-13","Amazon","AmazonCommercial 1-Ply White Hardwound Paper Towels",2,29.86,"Paper goods","Paper towels",2025,0],["2025-12-10","Amazon","Japanese Can Opener",1,9.9,"Kitchen","",2025,0],["2025-12-10","Amazon","Japanese Can Opener",1,9.9,"Kitchen","",2025,0],["2025-12-07","Amazon","Bounce Free & Gentle Dryer Sheets",4,36.82,"Laundry","",2025,0],["2025-12-06","Amazon","5PCS OstWony Measuring Spoons Set",2,9.94,"Kitchen","",2025,0],["2025-11-29","Amazon","Command 5 lb Large Utility Hooks",2,21.66,"Repairs & lighting","Picture hangers & hooks",2025,0],["2025-11-28","Amazon","SC Johnson Professional Ziploc Quart Food Storage Freezer Bags",1,20.17,"Kitchen","",2025,0],["2025-11-28","Amazon","SC Johnson Professional Ziploc Sandwich Bags",1,13.77,"Kitchen","",2025,0],["2025-11-27","Lowe's","Relax 60 W-eq A19 LED bulbs, soft white",1,22.98,"Repairs & lighting","Light bulbs",2025,0],["2025-11-27","Lowe's","Stainless steel drain hose (lint) strainer, 2-pack",10,38.8,"Laundry","Lint / drain strainers",2025,0],["2025-11-27","Lowe's","Utility Pro 13 gal scent-free white drawstring kitchen trash bags, 180 ct",1,19.98,"Kitchen","Trash bags",2025,0],["2025-11-27","Zoro","Boardwalk 2-ply toilet paper, 96 rolls",2,102.26,"Paper goods","Toilet paper",2025,0],["2025-11-21","Amazon","AIDEA Sponges Kitchen",1,14.99,"Cleaning","Sponges & scrubbers",2025,0],["2025-11-03","Zoro","Showa 717 nitrile chemical-resistant gloves, XL (pairs)",24,30.13,"Other","Gloves",2025,0],["2025-11-03","Zoro","Tough Guy HE laundry detergent powder, 50 lb, unscented",1,45.57,"Laundry","Laundry detergent",2025,0],["2025-10-31","Amazon","Lysol Toilet Bowl Cleaner Gel",15,49.35,"Cleaning","",2025,0],["2025-10-25","Amazon","Frost King V76H Shrink Window Kit 84-Inch by 110-Inch",2,15.7,"Other","Winterizing (window film, weatherstrip)",2025,0],["2025-10-25","Amazon","StarJungle Indoor Window Insulation Kit",5,121.25,"Other","Winterizing (window film, weatherstrip)",2025,0],["2025-10-20","Zoro","Gojo lotion hand soap, 1 gal, 4-pack",1,50.95,"Cleaning","Hand soap",2025,0],["2025-10-20","Zoro","Scotch contractor-grade masking tape, 9-pack",2,43.78,"Repairs & lighting","Masking tape",2025,0],["2025-09-30","Zoro","Boardwalk 2-ply toilet paper, 96 rolls",2,113.63,"Paper goods","Toilet paper",2025,0],["2025-09-14","Lowe's","Black residential door closer",1,25.99,"Repairs & lighting","Door closers",2025,0],["2025-09-14","Lowe's","Utility Pro 13 gal scent-free white drawstring kitchen trash bags, 180 ct",2,39.96,"Kitchen","Trash bags",2025,0],["2025-09-05","Zoro","Ajax no-scent cleanser powder, 21 oz",12,22.68,"Cleaning","Powder cleanser (Bon Ami/Ajax)",2025,0],["2025-09-05","Zoro","Bon Ami no-scent powder cleaner, 14 oz",12,38.62,"Cleaning","Powder cleanser (Bon Ami/Ajax)",2025,0],["2025-08-25","Zoro","Boardwalk 2-ply toilet paper, 96 rolls",1,45.44,"Paper goods","Toilet paper",2025,0],["2025-08-25","Zoro","ECOS concentrated dish soap, 5 gal, unscented",2,116.29,"Cleaning","Dish soap",2025,0],["2025-08-25","Zoro","Genuine Joe stainless steel scrubbers, 12-pack",1,9.58,"Cleaning","Sponges & scrubbers",2025,0],["2025-08-25","Zoro","Tough Guy HE laundry detergent powder, 50 lb, unscented",2,72.91,"Laundry","Laundry detergent",2025,0],["2025-08-19","Amazon","Dawn Platinum Plus PowerSuds dish soap, 17.4 oz",2,7.36,"Cleaning","Dish soap",2025,0],["2025-08-19","Amazon","Dawn Powerwash dish spray starter kit, 16 oz",2,6.3,"Cleaning","Dish soap",2025,0],["2025-08-19","Amazon","SetSail dish brush set of 3 with bottle brush",1,7.37,"Cleaning","Brushes",2025,0],["2025-08-19","Amazon","SetSail dish brush set of 3 with scraper tip",1,7.37,"Cleaning","Brushes",2025,0],["2025-07-31","Zoro","Boardwalk 2-ply toilet paper, 96 rolls",2,113.63,"Paper goods","Toilet paper",2025,0],["2025-07-13","Lowe's","CAT6 ethernet wall jack",1,11.48,"Repairs & lighting","",2025,0],["2025-07-13","Lowe's","RJ45 CAT6 pass-thru modular plugs, 10-pack",1,9.98,"Repairs & lighting","",2025,0],["2025-07-07","Lowe's","Pestblock spray foam sealant, 12 oz",1,9.98,"Other","",2025,0],["2025-07-07","Lowe's","Utility Pro 13 gal scent-free white drawstring kitchen trash bags, 180 ct",2,39.96,"Kitchen","Trash bags",2025,0],["2025-06-10","Amazon","Hortsun motion-sensor light sockets (6-pack); Cuisinart coffee-maker charcoal water filters (12-pack); 2× Dawn Powerwash dish spray, 16 oz",null,55.46,"Repairs & lighting","Dish soap",2025,0],["2025-06-04","Zoro","7 gal clear trash bags, 2000-pack",1,48.77,"Kitchen","Trash bags",2025,0],["2025-06-04","Zoro","Bath tissue, 400 sheets, 96-pack",1,49.94,"Paper goods","Toilet paper",2025,0],["2025-06-04","Zoro","Genuine Joe bathroom tissue dispenser",1,10.67,"Other","",2025,0],["2025-06-04","Zoro","Genuine Joe stainless steel scrubbers, 12-pack",1,9.23,"Cleaning","Sponges & scrubbers",2025,0],["2025-06-04","Zoro","Jumbo roll toilet paper, 2-ply, 800 ft",1,26.49,"Paper goods","Toilet paper",2025,0],["2025-06-04","Zoro","Showa 717 nitrile chemical-resistant gloves, XL (pairs)",12,12.8,"Other","Gloves",2025,0],["2025-06-04","Zoro","Tough Guy floor cleaner, 5 gal",1,48.39,"Cleaning","Floor cleaner & mops",2025,0],["2025-06-03","Menards","Watts Pure H2O-F12 undersink carbon block water filter",2,70.77,"Kitchen","Water filters (Watts under-sink)",2025,0],["2025-06-03","Menards","Watts Pure H2O-F14 undersink sediment water filter",2,81.49,"Kitchen","Water filters (Watts under-sink)",2025,0],["2025-06-02","Zoro","ECOS concentrated dish soap, 5 gal, unscented",1,72.68,"Cleaning","Dish soap",2025,0],["2025-06-02","Zoro","Scotch-Brite heavy-duty scrub sponges, 24-pack",1,32.02,"Cleaning","Sponges & scrubbers",2025,0],["2025-06-02","Zoro","Tolco 1 L trigger spray bottles, 12-pack",1,29.0,"Cleaning","Spray bottles",2025,0],["2025-06-02","Zoro","Tough Guy HE laundry detergent powder, 50 lb, unscented",1,45.57,"Laundry","Laundry detergent",2025,0],["2025-06-02","Zoro","Windex glass cleaner, 1 gal, unscented",1,14.08,"Cleaning","",2025,0],["2025-05-28","Lowe's","CAT6 riser data cable, blue, 100 ft",1,32.31,"Repairs & lighting","",2025,0],["2025-05-28","Lowe's","Quickie Bulldozer 24\" push broom",1,18.98,"Cleaning","Brooms & dustpans",2025,0],["2025-05-28","Lowe's","Rubbermaid Lobby Pro upright dustpan",1,16.98,"Cleaning","Brooms & dustpans",2025,0],["2025-05-20","Lowe's","Stainless steel drain hose (lint) strainer, 2-pack",10,34.8,"Laundry","Lint / drain strainers",2025,0],["2025-04-01","Lowe's","Contractor-grade masking tape, 0.94\" × 60 yd, 9-pack",1,21.48,"Repairs & lighting","Masking tape",2025,0],["2025-04-01","Lowe's","Disposable all-purpose face masks",1,14.98,"Other","Face masks",2025,0],["2025-02-22","Lowe's","Genuine Joe full-size paper towels, 6 rolls",1,33.72,"Paper goods","Paper towels",2025,0],["2025-02-22","Lowe's","Stainless steel drain hose (lint) strainer, 2-pack",1,3.48,"Laundry","Lint / drain strainers",2025,0],["2025-02-22","Lowe's","Utility Pro 13 gal scent-free white drawstring kitchen trash bags, 180 ct",1,19.98,"Kitchen","Trash bags",2025,0],["2025-01-12","Zoro","Arocep ultra bleach, 1 gal, 6-pack",1,33.22,"Cleaning","Bleach",2025,0],["2025-01-12","Zoro","Dayton hand drum pump",2,8.76,"Kitchen","Drum / bucket pumps",2025,0],["2025-01-12","Zoro","Genuine Joe lotion hand soap, 1 gal, 4-pack",1,38.98,"Cleaning","Hand soap",2025,0],["2025-01-06","Zoro","Bon Ami no-scent powder cleaner, 14 oz",12,42.92,"Cleaning","Powder cleanser (Bon Ami/Ajax)",2025,0],["2025-01-06","Zoro","ECOS concentrated dish soap, 5 gal, unscented",1,72.67,"Cleaning","Dish soap",2025,0],["2025-01-06","Zoro","Tough Guy HE laundry detergent powder, 50 lb, unscented",1,45.56,"Laundry","Laundry detergent",2025,0],["2024-12-23","Lowe's","2-lb sawtooth picture hangers, 6-pack",1,2.18,"Repairs & lighting","Picture hangers & hooks",2024,0],["2024-12-23","Lowe's","36\" spice aluminum seam binder floor trim",1,8.98,"Repairs & lighting","",2024,0],["2024-12-23","Lowe's","4\" black house number \"3\"",1,2.68,"Repairs & lighting","",2024,0],["2024-12-23","Lowe's","5-lb sawtooth picture hangers, 5-pack",1,3.78,"Repairs & lighting","Picture hangers & hooks",2024,0],["2024-12-23","Lowe's","CLAW 15-lb picture hangers, 5-pack",1,11.98,"Repairs & lighting","Picture hangers & hooks",2024,0],["2024-12-23","Lowe's","CLAW 25-lb picture hangers, 4-pack",1,11.88,"Repairs & lighting","Picture hangers & hooks",2024,0],["2024-12-23","Lowe's","Cup hook combo kit, 55-pack",1,5.98,"Repairs & lighting","Picture hangers & hooks",2024,0],["2024-12-23","Lowe's","PEVA clear shower liner, 70\" × 72\"",1,8.98,"Other","",2024,0],["2024-12-19","Lowe's","32 W T9 G10q fluorescent circline tube, soft white",1,11.68,"Repairs & lighting","Light bulbs",2024,0],["2024-12-19","Lowe's","Black residential door closer",1,17.73,"Repairs & lighting","Door closers",2024,0],["2024-12-19","Lowe's","Scotch-Brite stainless steel scrubbers, 3-pack",4,15.92,"Cleaning","Sponges & scrubbers",2024,0],["2024-12-05","Lowe's","15/16 × 27 dual-thread faucet aerators, 6-pack",1,21.48,"Repairs & lighting","",2024,0],["2024-12-05","Lowe's","Pro Series 60 W-eq A19 LED bulbs, soft white, 16-pack",1,24.98,"Repairs & lighting","Light bulbs",2024,0],["2024-11-29","Lowe's","Genuine Joe fragrance-free HE laundry detergent, 640 oz",1,46.49,"Laundry","Laundry detergent",2024,0],["2024-11-29","Lowe's","Pro Series 60 W-eq A19 LED bulbs, daylight, 16-pack",1,24.98,"Repairs & lighting","Light bulbs",2024,0],["2024-11-29","Lowe's","Utility Pro 13 gal scent-free white drawstring kitchen trash bags, 180 ct",2,39.96,"Kitchen","Trash bags",2024,0],["2024-11-29","Menards","Dawn Platinum Powerwash dish spray, 16 oz",2,10.38,"Cleaning","Dish soap",2024,0],["2024-11-29","Menards","Watts Pure H2O-F12 undersink carbon block water filter",2,65.01,"Kitchen","Water filters (Watts under-sink)",2024,0],["2024-11-29","Menards","Watts Pure H2O-F14 undersink sediment water filter",2,75.85,"Kitchen","Water filters (Watts under-sink)",2024,0],["2024-11-17","Lowe's","Window insulation shrink film kit, 5 ft × 10.5 ft",5,87.35,"Other","Winterizing (window film, weatherstrip)",2024,0],["2024-10-17","Nassco","Aluminum foil roll, standard",2,89.04,"Kitchen","Foil & plastic wrap",2024,0],["2024-10-17","Nassco","Cellulose sponge, medium",10,21.73,"Cleaning","Sponges & scrubbers",2024,0],["2024-10-17","Nassco","Clear trash bags, 7–10 gal, case",4,113.28,"Kitchen","Trash bags",2024,0],["2024-10-17","Nassco","Disposable vinyl gloves, powder-free, L (box)",5,51.09,"Other","Gloves",2024,0],["2024-10-17","Nassco","Disposable vinyl gloves, powder-free, M (box)",5,51.09,"Other","Gloves",2024,0],["2024-10-17","Nassco","Eraser sponge block",5,9.7,"Cleaning","Sponges & scrubbers",2024,0],["2024-10-17","Nassco","Nassco 10 bio-enzyme cleaner, 1 gal",2,30.28,"Cleaning","",2024,0],["2024-10-17","Nassco","Nassco 15 drain opener, case",1,89.02,"Repairs & lighting","Drain opener",2024,0],["2024-10-17","Nassco","Nassco 28 neutral floor cleaner, pail",1,56.7,"Cleaning","Floor cleaner & mops",2024,0],["2024-10-17","Nassco","Plastic wrap (cutterbox film), case",2,45.8,"Kitchen","Foil & plastic wrap",2024,0],["2024-10-14","Lowe's","Brown rubber door weatherstrip, 6.75 ft × 1\" × 5/8\"",8,119.04,"Other","Winterizing (window film, weatherstrip)",2024,0],["2024-10-14","Lowe's","Gold oxide twist drill bit set, 14-piece",1,14.98,"Repairs & lighting","",2024,0],["2024-10-07","Lowe's","3-gang white decorator wall plate",2,6.56,"Repairs & lighting","",2024,0],["2024-10-07","Lowe's","Unscented HE laundry detergent sheets, 640 loads (8-pack)",1,184.0,"Laundry","Laundry detergent",2024,0],["2024-10-02","Lowe's","55/64\" female standard faucet adapter",1,17.02,"Repairs & lighting","",2024,0],["2024-10-02","Lowe's","BRK 10-year battery ionization smoke detectors",1,127.4,"Other","Smoke detectors & batteries",2024,0],["2024-10-02","Lowe's","Chrome bathroom grid drain strainer",4,11.92,"Repairs & lighting","Lint / drain strainers",2024,0],["2024-09-23","Lowe's","Contractor-grade masking tape, 0.94\" × 60 yd, 9-pack",1,21.48,"Repairs & lighting","Masking tape",2024,0],["2024-09-23","Lowe's","Utility Pro 13 gal scent-free white drawstring kitchen trash bags, 180 ct",2,34.96,"Kitchen","Trash bags",2024,0],["2024-09-09","Lowe's","36\" grey item, 50-pack (install with screws)",1,118.0,"Other","",2024,0],["2024-09-09","Lowe's","5.3\" red cup plunger, 18\" handle",1,3.48,"Repairs & lighting","",2024,0],["2024-09-09","Lowe's","6\" beehive toilet plunger with caddy",3,65.94,"Repairs & lighting","",2024,0],["2024-09-09","Lowe's","BRK 10-year battery ionization smoke detectors",1,127.4,"Other","Smoke detectors & batteries",2024,0],["2024-09-09","Lowe's","Drill brush cleaning kit with 6\" extension",2,23.96,"Repairs & lighting","",2024,0],["2024-09-09","Lowe's","Drip-free spray gel adhesive remover",1,9.98,"Repairs & lighting","",2024,0],["2024-09-09","Lowe's","DryDex color-changing spackling",1,9.48,"Repairs & lighting","Picture hangers & hooks",2024,0],["2024-09-09","Lowe's","Indoor/outdoor glue insect traps, 5-pack",1,13.31,"Other","",2024,0],["2024-09-09","Lowe's","Liquid ant bait stations, 6-pack",1,5.98,"Other","",2024,0],["2024-09-09","Lowe's","Plastic transfer pump",1,24.23,"Kitchen","Drum / bucket pumps",2024,0],["2024-08-06","Lowe's","Stainless steel drain hose (lint) strainer, 2-pack",13,47.73,"Laundry","Lint / drain strainers",2024,0],["2024-07-30","Nassco","Aluminum foil roll, standard",1,44.52,"Kitchen","Foil & plastic wrap",2024,0],["2024-07-30","Nassco","Clorox germicidal bleach (case)",1,42.28,"Cleaning","Bleach",2024,0],["2024-07-30","Nassco","Nassco 28 neutral floor cleaner, case",1,68.19,"Cleaning","Floor cleaner & mops",2024,0],["2024-07-30","Nassco","Plastic wrap (cutterbox film), case",1,26.52,"Kitchen","Foil & plastic wrap",2024,0],["2024-06-03","Amazon","Humane catch-and-release mouse traps (4-pack); Genuine Joe powdered laundry detergent",null,65.97,"Laundry","Laundry detergent",2024,0],["2024-04-29","Lowe's","Heavy-duty cellulose sponges with scouring pad, 9-pack",5,49.9,"Cleaning","Sponges & scrubbers",2024,0],["2024-04-01","Lowe's","Utility Pro 13 gal scent-free white drawstring kitchen trash bags, 180 ct",3,59.94,"Kitchen","Trash bags",2024,0],["2024-04-01","Nassco","Ajax powder cleanser (case)",2,143.9,"Cleaning","Powder cleanser (Bon Ami/Ajax)",2024,0],["2024-04-01","Nassco","Nassco 74 heavy-duty dishwasher delimer, 1 gal",4,104.51,"Kitchen","Dishwasher delimer",2024,0],["2024-04-01","Nassco","Scrub sponge, medium duty",1,2.58,"Cleaning","Sponges & scrubbers",2024,0],["2024-03-08","Amazon","2× Liberty 22\" bottom-mount drawer slides, white; 4× Zep 32 oz professional sprayer bottles",null,36.04,"Cleaning","Spray bottles",2024,0],["2024-03-03","Amazon","2× unbleached parchment paper roll, 15 in × 210 ft (2-pack)",null,49.98,"Cleaning","",2024,0],["2024-02-17","Amazon","9.5\" shower/window glass squeegee; Genuine Joe Launder-X powdered laundry detergent",null,37.19,"Other","Laundry detergent",2024,0],["2024-02-17","Amazon","Genuine Joe Launder-X powdered laundry detergent",null,27.2,"Laundry","Laundry detergent",2024,0],["2024-02-17","Amazon","Standard aluminum foil, 12\" × 1000'",null,26.3,"Other","Foil & plastic wrap",2024,0],["2024-02-06","Menards","Clorox disinfecting bleach, 81 oz",5,41.12,"Cleaning","Bleach",2024,0],["2024-02-06","Menards","Windex glass cleaner, 16.9 oz",5,14.9,"Cleaning","",2024,0],["2024-01-28","Lowe's","60 W-eq A19 LED bulbs, soft white",1,29.95,"Repairs & lighting","Light bulbs",2024,0],["2024-01-28","Lowe's","Poly fiber bottle brush",3,18.36,"Other","Brushes",2024,0],["2024-01-13","Lowe's","Pro Series 60 W-eq A19 LED bulbs, daylight, 16-pack",1,24.98,"Repairs & lighting","Light bulbs",2024,0],["2024-01-13","Lowe's","Utility Pro 13 gal scent-free white drawstring kitchen trash bags, 180 ct",1,18.98,"Kitchen","Trash bags",2024,0],["2024-01-13","Lowe's","White LED auto on/off night light",2,17.96,"Repairs & lighting","",2024,0],["2024-01-12","Amazon","Nylon cable zip ties (600-pack); 3× bathroom sink/tub drain strainers (3-pack)",null,36.66,"Laundry","Lint / drain strainers",2024,0],["2024-01-12","Amazon","SantopSeal silicone tubing, 3/16\" ID × 3/8\" OD",null,28.19,"Other","",2024,0],["2024-01-10","Amazon","3× Scotch-Brite bottle brush; Command large utility hooks; Scotch-Brite pot and pan brush",null,31.84,"Repairs & lighting","Brushes",2024,0],["2024-01-04","Menards","Libman Freedom spray mop",1,26.43,"Cleaning","Floor cleaner & mops",2024,0],["2024-01-04","Menards","Libman microfiber floor mop refill",2,18.12,"Cleaning","Floor cleaner & mops",2024,0],["2024-01-04","Nassco","Lotion hand soap, fragrance-free (case)",1,88.21,"Cleaning","Hand soap",2024,0],["2024-01-04","Nassco","Nassco 28 neutral floor cleaner, case",2,136.47,"Cleaning","Floor cleaner & mops",2024,0],["2023-12-24","Amazon","Genuine Joe powdered laundry detergent",null,38.39,"Laundry","Laundry detergent",2023,0],["2023-12-24","Amazon","IMLEZON commercial pre-rinse sink sprayer faucet",null,39.99,"Cleaning","Spray bottles",2023,0],["2023-12-24","Menards","Dawn Platinum Powerwash dish spray, 16 oz",4,20.45,"Cleaning","Dish soap",2023,0],["2023-12-24","Menards","Scotch-Brite Little Handy scrubber",4,11.54,"Cleaning","Sponges & scrubbers",2023,0],["2023-12-24","Menards","Watts Pure H2O-F12 undersink carbon block water filter",2,62.07,"Kitchen","Water filters (Watts under-sink)",2023,0],["2023-12-24","Menards","Watts Pure H2O-F14 undersink sediment water filter",2,72.42,"Kitchen","Water filters (Watts under-sink)",2023,0],["2023-10-30","Nassco","Chemical-resistant trigger sprayer",5,27.26,"Cleaning","Spray bottles",2023,0],["2023-10-30","Nassco","Nassco 28 neutral floor cleaner, 1 gal",4,68.13,"Cleaning","Floor cleaner & mops",2023,0],["2023-10-30","Nassco","Windex glass cleaner, 1 gal",2,42.0,"Cleaning","",2023,0],["2023-10-03","Nassco","Nassco 73 dishwasher delimer, 1 gal",2,74.21,"Kitchen","Dishwasher delimer",2023,0],["2023-09-13","Amazon","Cenipar air-conditioner condenser fin comb set; 2× handled bath scrubber",null,33.37,"Cleaning","Sponges & scrubbers",2023,0],["2023-09-13","Menards","Zep Liquid Heat gel drain opener, 128 oz",4,78.32,"Repairs & lighting","Drain opener",2023,0],["2023-09-04","Menards","Watts Pure H2O-F12 undersink carbon block water filter",1,34.9,"Kitchen","Water filters (Watts under-sink)",2023,0],["2023-09-04","Menards","Watts Pure H2O-F14 undersink sediment water filter",1,40.72,"Kitchen","Water filters (Watts under-sink)",2023,0],["2023-07-02","Nassco","Aluminum foil roll, standard",1,34.04,"Kitchen","Foil & plastic wrap",2023,0],["2023-07-02","Nassco","Nassco 28 neutral floor cleaner, 1 gal",4,63.9,"Cleaning","Floor cleaner & mops",2023,0],["2023-07-02","Nassco","Plastic wrap (cutterbox film), case",1,24.86,"Kitchen","Foil & plastic wrap",2023,0],["2023-07-02","Nassco","Scrub sponge, medium duty",20,52.21,"Cleaning","Sponges & scrubbers",2023,0],["2023-07-02","Nassco","Tork Universal 2-ply toilet paper (case)",1,84.92,"Paper goods","Toilet paper",2023,0],["2023-06-04","Amazon","Broan bathroom fan motor 99080180 (509/509S)",null,59.61,"Other","",2023,0],["2023-05-21","Nassco","Lotion hand soap, fragrance-free (case)",2,196.37,"Cleaning","Hand soap",2023,0],["2023-02-05","Nassco","Ajax powder cleanser (case)",1,66.98,"Cleaning","Powder cleanser (Bon Ami/Ajax)",2023,0],["2023-02-05","Nassco","Aluminum foil roll, cutterbox",1,68.54,"Kitchen","Foil & plastic wrap",2023,0],["2023-02-05","Nassco","Arocep ultra bleach, 1 gal",6,35.79,"Cleaning","Bleach",2023,0],["2023-02-05","Nassco","Chemical-resistant trigger sprayer",10,47.12,"Cleaning","Spray bottles",2023,0],["2023-02-05","Nassco","Hypoallergenic hand soap (case)",1,97.97,"Cleaning","Hand soap",2023,0],["2023-02-05","Nassco","Masking tape, 1 in × 50 m",10,34.88,"Repairs & lighting","Masking tape",2023,0],["2023-02-05","Nassco","Nassco 28 neutral floor cleaner, 1 gal",8,117.78,"Cleaning","Floor cleaner & mops",2023,0],["2023-02-05","Nassco","Scrub sponge, medium duty",20,48.13,"Cleaning","Sponges & scrubbers",2023,0]];
+const CATS=["Paper goods","Laundry","Cleaning","Kitchen","Repairs & lighting","Other"];
+const CVAR=["--s1","--s2","--s3","--s4","--s5","--s6"];
+const STORES=["Amazon","Zoro","Lowe's","Menards","Nassco","Home Depot","Costco"];
+const state={month:"",year:0,stores:new Set(STORES),cats:new Set(CATS),q:"",group:"",sort:[0,-1]};
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const money=v=>"$"+v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0=v=>"$"+Math.round(v).toLocaleString("en-US");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let R=DATA.map(a=>({date:a[0],store:a[1],item:a[2],qty:a[3],total:a[4],cat:a[5],group:a[6],year:a[7],ret:a[8]}));
+
+const BASE="https://docs.google.com/spreadsheets/d/e/2PACX-1vReRtto5r5bIijyphi1aLBWAbizFonBp68q2It_tpLf_jI4VHyxRwWXbz6xmdUaZF_O4Cap_T4Pdggc/pub?single=true&output=csv&gid=";
+const SOURCES=["3001","378352150"]; // "Public" tab first, then "All purchases"
+const GROUPS=[["Toilet paper",["toilet paper","bath tissue","jumbo roll"]],["Laundry detergent",["laundry detergent","launder-x","detergent sheets"]],["Trash bags",["trash bags"]],["Water filters (Watts under-sink)",["watts"]],["Paper towels",["paper towels"]],["Spray bottles",["sprayer","spray bottles"]],["Dish soap",["dish soap","dish spray","dawn pro","powersuds"]],["Sponges & scrubbers",["sponge","scrubber"]],["Brushes",["brush"]],["Light bulbs",["bulb","fluorescent","a19"]],["Powder cleanser (Bon Ami/Ajax)",["bon ami","ajax"]],["Vinegar",["vinegar"]],["Hand soap",["hand soap"]],["Gloves",["gloves"]],["Face masks",["face mask"]],["Winterizing (window film, weatherstrip)",["window insulation","shrink","weatherstrip"]],["Smoke detectors & batteries",["smoke detector"]],["Dishwasher delimer",["delimer"]],["Foil, wrap & parchment",["foil","plastic wrap","parchment"]],["Drain opener",["drain opener"]],["Lint / drain strainers",["lint","strainer"]],["Floor cleaner & mops",["floor cleaner","mop"]],["Bleach",["bleach,","bleach ","ultra bleach"]],["Drum / bucket pumps",["pump"]],["Picture hangers & hooks",["picture","hook","hanging"]],["Brooms & dustpans",["broom","dustpan"]],["Door closers",["door closer"]],["Motion-sensor sockets",["motion"]],["Coffee-maker water filters",["cuisinart coffee","coffee makers"]],["Masking tape",["masking tape"]]];
+function groupOf(item){const l=item.toLowerCase();for(const [g,ks] of GROUPS){if(!ks.some(k=>l.includes(k)))continue;
+  if(g==="Bleach"&&(l.includes("with bleach")||l.includes("resistant")))continue;if(g==="Spray bottles"&&l.includes("dish spray"))continue;
+  if(g==="Brushes"&&l.includes("drill brush"))continue;if(g==="Light bulbs"&&l.includes("socket"))continue;if(g==="Lint / drain strainers"&&l.includes("mesh"))continue;return g;}return "";}
+const CATMAP={"Paper goods":"Paper goods","Laundry":"Laundry","Cleaning":"Cleaning","Kitchen":"Kitchen","Repair / hardware":"Repairs & lighting","Lighting":"Repairs & lighting"};
+function parseCSV(t){const rows=[];let row=[],f="",q=false;for(let i=0;i<t.length;i++){const c=t[i];
+  if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++;}else q=false;}else f+=c;}
+  else if(c==='"')q=true;else if(c===','){row.push(f);f="";}else if(c==='\n'){row.push(f);rows.push(row);row=[];f="";}else if(c!=='\r')f+=c;}
+  if(f||row.length){row.push(f);rows.push(row);}return rows;}
+function toRecords(csv){const rows=parseCSV(csv);const h=rows[0].map(s=>s.trim());const ix=n=>h.indexOf(n);
+  const iD=ix("Date"),iS=ix("Retailer"),iI=ix("Item"),iQ=ix("Qty"),iT=ix("Total ($)"),iC=ix("Category"),iR=ix("Returned"),iN=ix("Notes");
+  if(iD<0||iI<0||iT<0)throw new Error("unexpected columns");
+  const out=[];for(const r of rows.slice(1)){const date=(r[iD]||"").trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
+    const total=parseFloat((r[iT]||"0").replace(/[$,]/g,""))||0;const ret=iR>=0?r[iR]==="yes":(iN>=0&&(r[iN]||"").startsWith("RETURNED"));
+    if(ret&&total===0)continue;const item=(r[iI]||"").trim();let cat=CATMAP[(r[iC]||"").trim()]||"Other";
+    if(item.includes("Mesh Strainers"))cat="Kitchen";if(item.includes("grid drain strainer"))cat="Repairs & lighting";
+    const store=(r[iS]||"").trim();
+    out.push({date,store:store.startsWith("Amazon")?"Amazon":store,item,qty:r[iQ]?+r[iQ]:null,total,cat,group:groupOf(item),year:+date.slice(0,4),ret:0});}
+  return out;}
+async function loadLive(){for(const g of SOURCES){try{const res=await fetch(BASE+g,{cache:"no-store"});if(!res.ok)continue;
+    const t=await res.text();if(!t.startsWith("Semester")&&!t.includes("Date,"))continue;const recs=toRecords(t);if(recs.length)return recs;}catch(e){}}return null;}
+function setStatus(s){const el=document.getElementById("dataStatus");if(el)el.textContent=s;}
+
+
+function chipRow(id,items,isOn,onClick,swatch){
+  const el=document.getElementById(id);
+  items.forEach((it,i)=>{const b=document.createElement("button");b.className="chip";b.type="button";
+    b.innerHTML=(swatch?`<span class="sw" style="background:var(${CVAR[i]})"></span>`:"")+esc(it.label);
+    b.setAttribute("aria-pressed",isOn(it.v));b.onclick=()=>{onClick(it.v);refreshChips();render();};
+    b.dataset.v=it.v;b.dataset.row=id;el.appendChild(b);});
+}
+function refreshChips(){
+  document.querySelectorAll("#f-year .chip").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.v===state.year));
+  document.querySelectorAll("#f-store .chip").forEach(b=>b.setAttribute("aria-pressed",state.stores.has(b.dataset.v)));
+  document.querySelectorAll("#f-cat .chip").forEach(b=>b.setAttribute("aria-pressed",state.cats.has(b.dataset.v)));
+  const mc=document.getElementById("monthChip");mc.classList.toggle("on",!!state.month);mc.textContent=state.month?MLONG(state.month)+"  ✕":"";
+  document.getElementById("backBtn").hidden=!state.month;
+  document.getElementById("chartTitle").textContent=state.month?"Spending in "+MLONG(state.month):"Spending by month";
+  document.getElementById("chartHint").textContent=state.month?"Each bar is one day · hover for the breakdown":"Hover a month for the breakdown · click it to zoom in";
+  const g=document.getElementById("groupChip");g.classList.toggle("on",!!state.group);g.textContent=state.group?state.group+"  ✕":"";
+}
+function yearChips(){const el=document.getElementById("f-year");el.querySelectorAll(".chip").forEach(b=>b.remove());const ys=[...new Set(R.map(r=>r.year))].sort();chipRow("f-year",[{v:0,label:"All"},...ys.map(y=>({v:y,label:String(y)}))],v=>v===state.year,v=>{state.year=v;state.month="";});}
+yearChips();
+const toggle=(set,v,all)=>{ if(set.size===all.length){set.clear();set.add(v);} else if(set.has(v)){set.delete(v); if(!set.size) all.forEach(x=>set.add(x));} else set.add(v); };
+chipRow("f-store",STORES.map(s=>({v:s,label:s})),v=>state.stores.has(v),v=>toggle(state.stores,v,STORES));
+chipRow("f-cat",CATS.map(s=>({v:s,label:s})),v=>state.cats.has(v),v=>toggle(state.cats,v,CATS),true);
+document.getElementById("q").addEventListener("input",e=>{state.q=e.target.value.trim().toLowerCase();render();});
+document.getElementById("monthChip").onclick=document.getElementById("backBtn").onclick=()=>{state.month="";refreshChips();render();};
+document.getElementById("groupChip").onclick=()=>{state.group="";refreshChips();render();};
+document.getElementById("reset").onclick=()=>{state.year=0;state.stores=new Set(STORES);state.cats=new Set(CATS);state.q="";state.group="";state.month="";document.getElementById("q").value="";refreshChips();render();};
+document.getElementById("catLegend").innerHTML=CATS.map((c,i)=>`<span><span class="sw" style="background:var(${CVAR[i]})"></span>${esc(c)}</span>`).join("");
+
+function filtered(){return R.filter(r=>(!state.year||r.year===state.year)&&(!state.month||r.date.startsWith(state.month))&&(state.stores.size===STORES.length||state.stores.has(r.store))&&state.cats.has(r.cat)&&(!state.group||r.group===state.group)&&(!state.q||(r.item+" "+r.group+" "+r.store).toLowerCase().includes(state.q)));}
+function nMonths(){if(state.month)return 1;return monthsAll().filter(m=>!state.year||m.startsWith(state.year)).length;}
+function monthsAll(){const out=[];let y=2023,m=2;const last=R.reduce((mx,r)=>r.date>mx?r.date:mx,"2026-09");const LY=+last.slice(0,4),LM=+last.slice(5,7);while(y<LY||(y===LY&&m<=LM)){out.push(`${y}-${String(m).padStart(2,"0")}`);m++;if(m>12){m=1;y++;}}return out;}
+const MLONG=ym=>{const [y,m]=ym.split("-");return new Date(+y,+m-1,1).toLocaleString("en-US",{month:"long",year:"numeric"});};
+const MLAB=ym=>{const [y,m]=ym.split("-");return new Date(+y,+m-1,1).toLocaleString("en-US",{month:"short"})+" ’"+y.slice(2);};
+
+let monthly,topChart;
+function base(){return{color:css("--ink-2"),grid:css("--grid"),surface:css("--surface"),ink:css("--ink"),gap:css("--gap"),font:css("--f-mono")||"monospace"};}
+
+function render(){
+  const rows=filtered();
+  const spent=rows.reduce((s,r)=>s+r.total,0);
+  document.getElementById("k-total").textContent=money0(spent);
+  if(state.month){document.getElementById("k-month").textContent=new Set(rows.map(r=>r.date)).size;document.getElementById("k-month-l").textContent="days with purchases";}else{document.getElementById("k-month").textContent=money0(spent/nMonths());document.getElementById("k-month-l").textContent="per month on average";}
+  document.getElementById("k-items").textContent=rows.length;
+  const B=base();
+  // monthly
+  let months=monthsAll(); if(state.year) months=months.filter(m=>m.startsWith(state.year));
+  let keys_,labels;
+  if(state.month){const [y,m]=state.month.split("-").map(Number);const n=new Date(y,m,0).getDate();keys_=Array.from({length:n},(_,i)=>state.month+"-"+String(i+1).padStart(2,"0"));labels=keys_.map(k=>String(+k.slice(8)));}
+  else{keys_=months;labels=months.map(MLAB);}
+  const ds=CATS.map((c,i)=>({label:c,data:keys_.map(m=>+rows.filter(r=>r.cat===c&&r.date.startsWith(m)).reduce((s,r)=>s+r.total,0).toFixed(2)),backgroundColor:css(CVAR[i]),borderColor:B.surface,borderWidth:{top:1.5,bottom:0,left:0,right:0},borderSkipped:false,maxBarThickness:28,hidden:!state.cats.has(c)}));
+  const mcfg={type:"bar",data:{labels,datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},
+      onClick:(e,els)=>{if(!state.month&&els.length){const m=keys_[els[0].index];setTimeout(()=>{state.month=m;refreshChips();render();},0);}},
+      onHover:(e,els)=>{e.native.target.style.cursor=(!state.month&&els.length)?"zoom-in":"default";},
+      plugins:{legend:{display:false},tooltip:{filter:it=>it.raw>0,itemSort:(a,b)=>b.raw-a.raw,callbacks:{title:its=>state.month?MLONG(state.month).split(" ")[0]+" "+its[0].label:its[0].label,label:it=>` ${it.dataset.label}: ${money(it.raw)}`,footer:its=>"Total "+money(its.reduce((s,i)=>s+i.raw,0))}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{color:B.color,font:{family:B.font,size:11},maxRotation:0,autoSkip:true,autoSkipPadding:8}},
+        y:{stacked:true,grid:{color:B.grid},border:{display:false},ticks:{color:B.color,font:{family:B.font,size:11},callback:v=>"$"+v}}}}};
+  if(monthly) monthly.destroy(); monthly=new Chart(document.getElementById("monthly"),mcfg);
+  // top items
+  const g={};rows.filter(r=>r.group&&r.total>0).forEach(r=>{(g[r.group]=g[r.group]||{d:new Set(),s:0}).d.add(r.date);g[r.group].s+=r.total;});
+  const list=Object.entries(g).map(([k,v])=>[k,v.d.size,v.s]).sort((a,b)=>b[2]-a[2]).slice(0,10);
+  const tcfg={type:"bar",data:{labels:list.map(l=>l[0]),datasets:[{label:"Total spent",data:list.map(l=>+l[2].toFixed(2)),times:list.map(l=>l[1]),backgroundColor:css("--s1"),borderRadius:4,borderSkipped:"start",maxBarThickness:22}]},
+    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,animation:false,
+      onClick:(e,els)=>{if(els.length){const g=list[els[0].index][0];setTimeout(()=>{state.group=g;refreshChips();render();},0);document.getElementById("ledger").scrollIntoView({behavior:"smooth",block:"start"});}},
+      onHover:(e,els)=>{e.native.target.style.cursor=els.length?"pointer":"default";},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:it=>{const n=it.dataset.times[it.dataIndex];return ` ${money(it.raw)} · bought ${n} time${n===1?"":"s"}`;}}}},
+      scales:{x:{grid:{color:B.grid},border:{display:false},ticks:{color:B.color,font:{family:B.font,size:11},callback:v=>"$"+v},title:{display:true,text:"Total spent",color:B.color,font:{family:B.font,size:11}}},
+        y:{grid:{display:false},ticks:{color:B.ink,font:{size:13}}}}}};
+  if(topChart) topChart.destroy(); topChart=new Chart(document.getElementById("top"),tcfg);
+  // table
+  const [k,dir]=state.sort; const keys=["date","store","item","qty","total","cat"];
+  const sorted=rows.slice().sort((a,b)=>{const x=a[keys[k]]??-1,y=b[keys[k]]??-1;return (x>y?1:x<y?-1:0)*dir;});
+  document.querySelector("#ledger tbody").innerHTML=sorted.map(r=>`<tr class="${r.ret?"ret":""}"><td class="date">${r.date}</td><td>${esc(r.store)}</td><td class="item"><span class="n">${esc(r.item)}</span>${r.ret?'<span class="pill ret">returned</span>':""}</td><td class="num">${r.qty??"–"}</td><td class="num">${money(r.total)}</td><td><span class="catdot"><span class="sw" style="background:var(${CVAR[CATS.indexOf(r.cat)]})"></span>${esc(r.cat)}</span></td></tr>`).join("")||`<tr><td colspan="6" class="muted">No purchases match these filters.</td></tr>`;
+  document.getElementById("rowcount").textContent=`${rows.length} rows · ${money(spent)}`;
+  document.querySelectorAll("#ledger th button").forEach(b=>{const on=+b.dataset.k===k;b.textContent=b.textContent.replace(/ [▲▼]$/,"")+(on?(dir>0?" ▲":" ▼"):"");});
+}
+document.querySelectorAll("#ledger th button").forEach(b=>b.onclick=()=>{const k=+b.dataset.k;state.sort=state.sort[0]===k?[k,-state.sort[1]]:[k,k===2||k===1||k===5?1:-1];render();});
+refreshChips();
+if(window.Chart){Chart.defaults.font.family=css("--f-body");}
+render();
+setStatus("Loading the latest purchases from the house sheet…");
+loadLive().then(recs=>{if(recs){R=recs;yearChips();refreshChips();render();setStatus("Live from the house purchases sheet · "+recs.length+" items · loaded "+new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}));}else setStatus(location.protocol==="file:"?"Saved copy from Oct 1, 2026 \u00b7 live data loads once this page is on GitHub Pages":"Couldn\u2019t reach the house sheet, showing the copy saved on Oct 1, 2026.");});
+const rerender=()=>render();
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",rerender);
+new MutationObserver(rerender).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(rerender);
+
+</script>
+</body>
+</html>
