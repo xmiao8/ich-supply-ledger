@@ -70,6 +70,13 @@ section{display:flex;flex-direction:column;gap:12px;min-width:0}
 .chartscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .chartscroll .chartbox{min-width:100%}
 .filtertoggle{display:none}
+#ledger tr.prow{cursor:pointer}
+#ledger tr.prow:hover td,#ledger tr.prow.sel td{background:var(--surface-2,rgba(127,127,127,.08))}
+#ledger tr.fbrow td{padding:8px 12px 12px}
+.fbbox{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px}
+.fbq{font-size:13.5px;color:var(--ink-2)}
+a.fbgo{text-decoration:none;font-weight:700}
+.fbgo.off{opacity:.6;cursor:default}
 .morebtn{align-self:center;padding:8px 18px}
 /* top items list */
 .toplist{display:flex;flex-direction:column;gap:4px}
@@ -143,6 +150,10 @@ footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);paddin
   #ledger td.tot{grid-area:total;font-weight:700}
   #ledger td.date,#ledger td.st,#ledger td.q,#ledger td.ct{grid-area:meta;display:none}
   #ledger td.meta{grid-area:meta;display:block;color:var(--ink-3);font-size:12.5px}
+  #ledger tr.prow.sel{border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0;border-bottom-color:transparent}
+  #ledger tr.fbrow{display:block;background:var(--surface);border:1px solid var(--rule);border-top:0;border-radius:0 0 10px 10px;margin-bottom:8px}
+  #ledger tr.fbrow td{display:block;padding:0 12px 12px}
+  #ledger tr.prow:hover td,#ledger tr.prow.sel td{background:none}
 }
 @media (min-width:641px){#ledger td.meta{display:none}}
 </style>
@@ -153,7 +164,7 @@ footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);paddin
 <header>
   <span class="eyebrow">International Cooperative House · Supplies &amp; maintenance</span>
   <h1>ICH Supply Ledger</h1>
-  <p class="lede">What the house buys to keep ICH running: cleaning supplies, paper goods, laundry, kitchen basics and repair parts, from Amazon, Zoro, Lowe's, Menards, Nassco, Home Depot and Costco. Filter by year, store or category, tap a month or an item to drill in, and search the full list at the bottom.</p>
+  <p class="lede">What the house buys to keep ICH running: cleaning supplies, paper goods, laundry, kitchen basics and repair parts, from Amazon, Zoro, Lowe's, Menards, Nassco, Home Depot and Costco. Filter by year, store or category, pick an item in the top-ten list to see its purchases, and tap any purchase at the bottom to leave feedback on it.</p>
   <div class="terms">
     <span class="term-tag">Since Feb 2023</span>
     <span class="term-tag">Paid from the house supplies &amp; maintenance accounts</span>
@@ -161,12 +172,11 @@ footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);paddin
   </div>
 </header>
 
-<div class="filters collapsed" role="region" aria-label="Filters">
+<div class="filters" role="region" aria-label="Filters">
   <div class="fgroup opt" id="f-year"><span class="flabel">Year</span></div>
   <div class="fgroup opt" id="f-store"><span class="flabel">Store</span></div>
   <div class="fgroup opt" id="f-cat"><span class="flabel">Category</span></div>
   <div class="fgroup searchrow">
-    <button class="chip filtertoggle" id="filterToggle" type="button" aria-expanded="false">Filters</button>
     <label class="flabel" for="q">Search</label>
     <input id="q" class="search" type="search" placeholder="e.g. toilet paper, bulbs">
     <button class="chip active-group" id="monthChip" aria-pressed="true" title="Show all months"></button>
@@ -182,7 +192,7 @@ footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);paddin
 </div>
 
 <section>
-  <div class="sec-head"><h2 id="chartTitle">Spending by month</h2><span class="muted"><span id="chartHint">Hover a month for the breakdown · click it to zoom in</span> <button class="reset" id="backBtn" type="button" hidden>← All months</button></span></div>
+  <div class="sec-head"><h2 id="chartTitle">Spending by month</h2><span class="muted"><span id="chartHint">Hover a month for the breakdown</span> <button class="reset" id="backBtn" type="button" hidden>← All months</button></span></div>
   <div class="panel">
     <div class="legend" id="catLegend"></div>
     <div class="chartscroll" id="mscroll"><div class="chartbox" id="mbox"><canvas id="monthly" role="img" aria-label="Stacked bar chart of monthly supply spending by category"></canvas></div></div>
@@ -212,10 +222,6 @@ footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);paddin
   <button class="chip morebtn" id="moreBtn" type="button" hidden>Show more</button>
 </section>
 
-<footer>
-  <p>Sources: Amazon order and returns exports for the house cards and the house Amazon account; Zoro, Lowe's, Menards, Nassco and Home Depot order histories. Totals include sales tax and fees. Returned items are left out.</p>
-  <p>Not included: toilet paper from the MCC office (Who Gives A Crap, until April 2025), most in-store purchases, and items bought through the food budget. Records are thinner before mid-2023, and Zoro only starts in January 2025, so older months may undercount what the house actually bought.</p>
-</footer>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -272,8 +278,7 @@ function refreshChips(){
   const mc=document.getElementById("monthChip");mc.classList.toggle("on",!!state.month);mc.textContent=state.month?MLONG(state.month)+"  ✕":"";
   document.getElementById("backBtn").hidden=!state.month;
   document.getElementById("chartTitle").textContent=state.month?"Spending in "+MLONG(state.month):"Spending by month";
-  document.getElementById("chartHint").textContent=state.month?("Each bar is one day · "+(TOUCH?"tap":"hover")+" for the breakdown"):(TOUCH?"Tap a month to zoom in · swipe for older months":"Hover a month for the breakdown · click it to zoom in");
-  {const n=activeFilterCount();document.getElementById("filterToggle").textContent=n?`Filters (${n})`:"Filters";}
+  document.getElementById("chartHint").textContent=state.month?("Each bar is one day · "+(TOUCH?"tap":"hover")+" for the breakdown"):(TOUCH?"Tap a month for the breakdown · swipe for older months":"Hover a month for the breakdown");
   const g=document.getElementById("groupChip");g.classList.toggle("on",!!state.group);g.textContent=state.group?state.group+"  ✕":"";
 }
 function yearChips(){const el=document.getElementById("f-year");el.querySelectorAll(".chip").forEach(b=>b.remove());const ys=[...new Set(R.map(r=>r.year))].sort();chipRow("f-year",[{v:0,label:"All"},...ys.map(y=>({v:y,label:String(y)}))],v=>v===state.year,v=>{state.year=v;state.month="";});}
@@ -295,9 +300,11 @@ const MLAB=ym=>{const [y,m]=ym.split("-");return new Date(+y,+m-1,1).toLocaleStr
 
 let monthly,topChart;
 let SHOWN=40,_sig="";
+/* Feedback form: paste the Google Form's pre-filled link here (Form ⋮ → Get pre-filled link, type ITEMNAME in the item question, Get link). */
+const FEEDBACK_PREFILL="";
+function feedbackURL(item){return FEEDBACK_PREFILL?FEEDBACK_PREFILL.replace("ITEMNAME",encodeURIComponent(item)):"";}
 const TOUCH=window.matchMedia("(hover: none)").matches;
 const NARROW=()=>window.matchMedia("(max-width:640px)").matches;
-document.getElementById("filterToggle").onclick=()=>{const f=document.querySelector(".filters");const c=f.classList.toggle("collapsed");document.getElementById("filterToggle").setAttribute("aria-expanded",String(!c));};
 function activeFilterCount(){return (state.year?1:0)+(state.stores.size<STORES.length?1:0)+(state.cats.size<CATS.length?1:0);}
 function base(){return{color:css("--ink-2"),grid:css("--grid"),surface:css("--surface"),ink:css("--ink"),gap:css("--gap"),font:css("--f-mono")||"monospace"};}
 
@@ -316,8 +323,7 @@ function render(){
   const ds=CATS.map((c,i)=>({label:c,data:keys_.map(m=>+rows.filter(r=>r.cat===c&&r.date.startsWith(m)).reduce((s,r)=>s+r.total,0).toFixed(2)),backgroundColor:css(CVAR[i]),borderColor:B.surface,borderWidth:{top:1.5,bottom:0,left:0,right:0},borderSkipped:false,maxBarThickness:28,hidden:!state.cats.has(c)}));
   const mcfg={type:"bar",data:{labels,datasets:ds},
     options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},
-      onClick:(e,els)=>{if(!state.month&&els.length){const m=keys_[els[0].index];setTimeout(()=>{state.month=m;refreshChips();render();},0);}},
-      onHover:(e,els)=>{e.native.target.style.cursor=(!state.month&&els.length)?"zoom-in":"default";},
+      onHover:(e,els)=>{e.native.target.style.cursor="default";},
       plugins:{legend:{display:false},tooltip:{filter:it=>it.raw>0,itemSort:(a,b)=>b.raw-a.raw,callbacks:{title:its=>state.month?MLONG(state.month).split(" ")[0]+" "+its[0].label:its[0].label,label:it=>` ${it.dataset.label}: ${money(it.raw)}`,footer:its=>"Total "+money(its.reduce((s,i)=>s+i.raw,0))}}},
       scales:{x:{stacked:true,grid:{display:false},ticks:{color:B.color,font:{family:B.font,size:11},maxRotation:0,autoSkip:true,autoSkipPadding:8}},
         y:{stacked:true,grid:{color:B.grid},border:{display:false},ticks:{color:B.color,font:{family:B.font,size:11},callback:v=>"$"+v}}}}};
@@ -337,11 +343,24 @@ function render(){
   const [k,dir]=state.sort; const keys=["date","store","item","qty","total","cat"];
   const sig=JSON.stringify([state.year,state.month,[...state.stores],[...state.cats],state.q,state.group,state.sort]);if(sig!==_sig){_sig=sig;SHOWN=40;}
   const sortedAll=rows.slice().sort((a,b)=>{const x=a[keys[k]]??-1,y=b[keys[k]]??-1;return (x>y?1:x<y?-1:0)*dir;});
-  const sorted=sortedAll.slice(0,SHOWN);const mb=document.getElementById("moreBtn");mb.hidden=sortedAll.length<=SHOWN;mb.textContent=`Show more (${sortedAll.length-SHOWN} left)`;
-  document.querySelector("#ledger tbody").innerHTML=sorted.map(r=>`<tr class="${r.ret?"ret":""}"><td class="date">${r.date}</td><td class="st">${esc(r.store)}</td><td class="item"><span class="n">${esc(r.item)}</span>${r.ret?'<span class="pill ret">returned</span>':""}</td><td class="num q">${r.qty??"–"}</td><td class="num tot">${money(r.total)}</td><td class="meta">${r.date} · ${esc(r.store)}${r.qty?" · qty "+r.qty:""} · ${esc(r.cat)}</td><td class="ct"><span class="catdot"><span class="sw" style="background:var(${CVAR[CATS.indexOf(r.cat)]})"></span>${esc(r.cat)}</span></td></tr>`).join("")||`<tr><td colspan="6" class="muted">No purchases match these filters.</td></tr>`;
-  document.getElementById("rowcount").textContent=`${rows.length} rows · ${money(spent)}`;
+  const sorted=sortedAll.slice(0,SHOWN);_shownRows=sorted;const mb=document.getElementById("moreBtn");mb.hidden=sortedAll.length<=SHOWN;mb.textContent=`Show more (${sortedAll.length-SHOWN} left)`;
+  document.querySelector("#ledger tbody").innerHTML=sorted.map((r,i)=>`<tr class="prow${r.ret?" ret":""}" data-i="${i}" tabindex="0" aria-expanded="false"><td class="date">${r.date}</td><td class="st">${esc(r.store)}</td><td class="item"><span class="n">${esc(r.item)}</span>${r.ret?'<span class="pill ret">returned</span>':""}</td><td class="num q">${r.qty??"–"}</td><td class="num tot">${money(r.total)}</td><td class="meta">${r.date} · ${esc(r.store)}${r.qty?" · qty "+r.qty:""} · ${esc(r.cat)}</td><td class="ct"><span class="catdot"><span class="sw" style="background:var(${CVAR[CATS.indexOf(r.cat)]})"></span>${esc(r.cat)}</span></td></tr>`).join("")||`<tr><td colspan="6" class="muted">No purchases match these filters.</td></tr>`;
+  document.getElementById("rowcount").textContent=`${rows.length} rows · ${money(spent)} · ${TOUCH?"tap":"click"} an item to give feedback`;
   document.querySelectorAll("#ledger th button").forEach(b=>{const on=+b.dataset.k===k;b.textContent=b.textContent.replace(/ [▲▼]$/,"")+(on?(dir>0?" ▲":" ▼"):"");});
 }
+let _shownRows=[];
+function toggleFeedback(tr){
+  const open=tr.nextElementSibling&&tr.nextElementSibling.classList.contains("fbrow");
+  document.querySelectorAll("#ledger tr.fbrow").forEach(x=>{x.previousElementSibling.setAttribute("aria-expanded","false");x.previousElementSibling.classList.remove("sel");x.remove();});
+  if(open)return;
+  const r=_shownRows[+tr.dataset.i];if(!r)return;
+  const url=feedbackURL(r.item);
+  const fb=document.createElement("tr");fb.className="fbrow";
+  fb.innerHTML=`<td colspan="7"><div class="fbbox"><span class="fbq">Used this? Tell the house how it’s working out.</span>`+(url?`<a class="chip fbgo" href="${url}" target="_blank" rel="noopener">Give feedback on this item →</a>`:`<span class="chip fbgo off" aria-disabled="true">Feedback form coming soon</span>`)+`</div></td>`;
+  tr.after(fb);tr.setAttribute("aria-expanded","true");tr.classList.add("sel");
+}
+document.querySelector("#ledger tbody").addEventListener("click",e=>{if(e.target.closest("a"))return;const tr=e.target.closest("tr.prow");if(tr)toggleFeedback(tr);});
+document.querySelector("#ledger tbody").addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches("tr.prow")){e.preventDefault();toggleFeedback(e.target);}});
 document.getElementById("moreBtn").onclick=()=>{SHOWN+=60;render();};
 document.querySelectorAll("#ledger th button").forEach(b=>b.onclick=()=>{const k=+b.dataset.k;state.sort=state.sort[0]===k?[k,-state.sort[1]]:[k,k===2||k===1||k===5?1:-1];render();});
 refreshChips();
