@@ -301,7 +301,7 @@ const MLAB=ym=>{const [y,m]=ym.split("-");return new Date(+y,+m-1,1).toLocaleStr
 let monthly,topChart;
 let SHOWN=40,_sig="";
 /* Feedback form: paste the Google Form's pre-filled link here (Form ⋮ → Get pre-filled link, type ITEMNAME in the item question, Get link). */
-const FEEDBACK_PREFILL="";
+const FEEDBACK_PREFILL="https://docs.google.com/forms/d/1J8g1L9f_qKfjSLlrkrDwlUZcbvLofbyDxF2kZEA1v2A/viewform?usp=pp_url&entry.419120863=ITEMNAME";
 function feedbackURL(item){return FEEDBACK_PREFILL?FEEDBACK_PREFILL.replace("ITEMNAME",encodeURIComponent(item)):"";}
 const TOUCH=window.matchMedia("(hover: none)").matches;
 const NARROW=()=>window.matchMedia("(max-width:640px)").matches;
