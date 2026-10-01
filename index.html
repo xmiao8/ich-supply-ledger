@@ -79,6 +79,7 @@ a.fbgo{text-decoration:none;font-weight:700}
 .fbgo.off{opacity:.6;cursor:default}
 [hidden]{display:none!important}
 .morebtn{align-self:center;padding:8px 18px}
+.suggestbtn{align-self:flex-start;text-decoration:none;font-weight:700;padding:8px 16px;margin-top:4px}
 /* top items list */
 .toplist{display:flex;flex-direction:column;gap:4px}
 .toprow{all:unset;cursor:pointer;display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) auto;align-items:center;gap:10px;padding:6px 8px;border-radius:8px}
@@ -176,6 +177,7 @@ footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);paddin
     <span class="term-tag">Paid from the house supplies &amp; maintenance accounts</span>
     <span class="term-tag" id="dataStatus">Saved copy from Oct 1, 2026</span>
   </div>
+  <a class="chip suggestbtn" id="suggestBtn" href="#" target="_blank" rel="noopener" hidden>+ Suggest something to buy</a>
 </header>
 
 <div class="filters collapsed" role="region" aria-label="Filters">
@@ -326,6 +328,11 @@ let monthly,topChart;
 let SHOWN=40,_sig="";
 /* Feedback form: paste the Google Form's pre-filled link here (Form ⋮ → Get pre-filled link, type ITEMNAME in the item question, Get link). */
 const FEEDBACK_PREFILL="https://docs.google.com/forms/d/1J8g1L9f_qKfjSLlrkrDwlUZcbvLofbyDxF2kZEA1v2A/viewform?usp=pp_url&entry.419120863=ITEMNAME";
+/* Suggestion form: SUGGEST_FORM is the form's link; SUGGEST_PREFILL is its pre-filled link with ITEMNAME in the item question. */
+const SUGGEST_FORM="";
+const SUGGEST_PREFILL="";
+function suggestURL(name){if(name&&SUGGEST_PREFILL)return SUGGEST_PREFILL.replace("ITEMNAME",encodeURIComponent(name));return SUGGEST_FORM;}
+{const b=document.getElementById("suggestBtn");if(b&&SUGGEST_FORM){b.href=SUGGEST_FORM;b.hidden=false;}}
 function feedbackURL(item){return FEEDBACK_PREFILL?FEEDBACK_PREFILL.replace("ITEMNAME",encodeURIComponent(item)):"";}
 const TOUCH=window.matchMedia("(hover: none)").matches;
 const NARROW=()=>window.matchMedia("(max-width:640px)").matches;
@@ -375,7 +382,7 @@ function render(){
 let _shownRows=[];
 function emptyRow(){
   const hidden=state.q?R.filter(r=>(r.item+" "+r.group+" "+r.store).toLowerCase().includes(state.q)).length:0;
-  const msg=hidden?`No “${esc(state.q)}” purchases with the current year, store or category filters. ${hidden} found across everything. <button class="reset" id="showAllBtn" type="button">Show all ${hidden}</button>`:"No purchases match these filters.";
+  const msg=hidden?`No “${esc(state.q)}” purchases with the current year, store or category filters. ${hidden} found across everything. <button class="reset" id="showAllBtn" type="button">Show all ${hidden}</button>`:(state.q&&suggestURL(state.q)?`Nothing called “${esc(state.q)}” has been bought yet. <a class="reset" href="${suggestURL(state.q)}" target="_blank" rel="noopener">Suggest the house buys it →</a>`:"No purchases match these filters.");
   return `<tr class="emptyrow"><td colspan="7" class="muted">${msg}</td></tr>`;
 }
 document.addEventListener("click",e=>{if(e.target.id==="showAllBtn"){state.year=0;state.month="";state.group="";state.stores=new Set(STORES);state.cats=new Set(CATS);refreshChips();render();}});
