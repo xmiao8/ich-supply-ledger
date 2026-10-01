@@ -286,7 +286,7 @@ yearChips();
 const toggle=(set,v,all)=>{ if(set.size===all.length){set.clear();set.add(v);} else if(set.has(v)){set.delete(v); if(!set.size) all.forEach(x=>set.add(x));} else set.add(v); };
 chipRow("f-store",STORES.map(s=>({v:s,label:s})),v=>state.stores.has(v),v=>toggle(state.stores,v,STORES));
 chipRow("f-cat",CATS.map(s=>({v:s,label:s})),v=>state.cats.has(v),v=>toggle(state.cats,v,CATS),true);
-document.getElementById("q").addEventListener("input",e=>{state.q=e.target.value.trim().toLowerCase();render();});
+document.getElementById("q").addEventListener("input",e=>{state.q=e.target.value.trim().toLowerCase();if(state.q&&state.group){state.group="";refreshChips();}render();});
 document.getElementById("monthChip").onclick=document.getElementById("backBtn").onclick=()=>{state.month="";refreshChips();render();};
 document.getElementById("groupChip").onclick=()=>{state.group="";refreshChips();render();};
 document.getElementById("reset").onclick=()=>{state.year=0;state.stores=new Set(STORES);state.cats=new Set(CATS);state.q="";state.group="";state.month="";document.getElementById("q").value="";refreshChips();render();};
@@ -344,11 +344,17 @@ function render(){
   const sig=JSON.stringify([state.year,state.month,[...state.stores],[...state.cats],state.q,state.group,state.sort]);if(sig!==_sig){_sig=sig;SHOWN=40;}
   const sortedAll=rows.slice().sort((a,b)=>{const x=a[keys[k]]??-1,y=b[keys[k]]??-1;return (x>y?1:x<y?-1:0)*dir;});
   const sorted=sortedAll.slice(0,SHOWN);_shownRows=sorted;const mb=document.getElementById("moreBtn");mb.hidden=sortedAll.length<=SHOWN;mb.textContent=`Show more (${sortedAll.length-SHOWN} left)`;
-  document.querySelector("#ledger tbody").innerHTML=sorted.map((r,i)=>`<tr class="prow${r.ret?" ret":""}" data-i="${i}" tabindex="0" aria-expanded="false"><td class="date">${r.date}</td><td class="st">${esc(r.store)}</td><td class="item"><span class="n">${esc(r.item)}</span>${r.ret?'<span class="pill ret">returned</span>':""}</td><td class="num q">${r.qty??"–"}</td><td class="num tot">${money(r.total)}</td><td class="meta">${r.date} · ${esc(r.store)}${r.qty?" · qty "+r.qty:""} · ${esc(r.cat)}</td><td class="ct"><span class="catdot"><span class="sw" style="background:var(${CVAR[CATS.indexOf(r.cat)]})"></span>${esc(r.cat)}</span></td></tr>`).join("")||`<tr><td colspan="6" class="muted">No purchases match these filters.</td></tr>`;
+  document.querySelector("#ledger tbody").innerHTML=sorted.map((r,i)=>`<tr class="prow${r.ret?" ret":""}" data-i="${i}" tabindex="0" aria-expanded="false"><td class="date">${r.date}</td><td class="st">${esc(r.store)}</td><td class="item"><span class="n">${esc(r.item)}</span>${r.ret?'<span class="pill ret">returned</span>':""}</td><td class="num q">${r.qty??"–"}</td><td class="num tot">${money(r.total)}</td><td class="meta">${r.date} · ${esc(r.store)}${r.qty?" · qty "+r.qty:""} · ${esc(r.cat)}</td><td class="ct"><span class="catdot"><span class="sw" style="background:var(${CVAR[CATS.indexOf(r.cat)]})"></span>${esc(r.cat)}</span></td></tr>`).join("")||emptyRow();
   document.getElementById("rowcount").textContent=`${rows.length} rows · ${money(spent)} · ${TOUCH?"tap":"click"} an item to give feedback`;
   document.querySelectorAll("#ledger th button").forEach(b=>{const on=+b.dataset.k===k;b.textContent=b.textContent.replace(/ [▲▼]$/,"")+(on?(dir>0?" ▲":" ▼"):"");});
 }
 let _shownRows=[];
+function emptyRow(){
+  const hidden=state.q?R.filter(r=>(r.item+" "+r.group+" "+r.store).toLowerCase().includes(state.q)).length:0;
+  const msg=hidden?`No “${esc(state.q)}” purchases with the current year, store or category filters. ${hidden} found across everything. <button class="reset" id="showAllBtn" type="button">Show all ${hidden}</button>`:"No purchases match these filters.";
+  return `<tr class="emptyrow"><td colspan="7" class="muted">${msg}</td></tr>`;
+}
+document.addEventListener("click",e=>{if(e.target.id==="showAllBtn"){state.year=0;state.month="";state.group="";state.stores=new Set(STORES);state.cats=new Set(CATS);refreshChips();render();}});
 function toggleFeedback(tr){
   const open=tr.nextElementSibling&&tr.nextElementSibling.classList.contains("fbrow");
   document.querySelectorAll("#ledger tr.fbrow").forEach(x=>{x.previousElementSibling.setAttribute("aria-expanded","false");x.previousElementSibling.classList.remove("sel");x.remove();});
