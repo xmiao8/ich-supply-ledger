@@ -130,11 +130,16 @@ footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);paddin
   .fig .v{font-size:20px}
   .fig .k{font-size:12px}
   .lede{font-size:14px}
-  .filters{position:static;gap:8px}
-  .filtertoggle{display:inline-flex}
+  .filters{position:static;gap:10px;padding-block:12px}
+  .filters.collapsed{position:sticky;top:env(safe-area-inset-top,0px)}
   .filters.collapsed .fgroup.opt{display:none}
-  .search{width:auto;flex:1 1 140px}
-  .fgroup.searchrow{width:100%}
+  .fgroup.searchrow{order:-1;width:100%;gap:8px}
+  .searchrow .flabel{display:none}
+  .search{flex:1 1 0;width:auto;font-size:16px;padding:12px 12px 12px 40px;border-radius:12px;border:1.5px solid var(--ink-3);background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%238d928d' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 13px center}
+  .search:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+  .filtertoggle{display:inline-flex;align-items:center;min-height:46px;padding:0 14px;border-radius:12px}
+  .filtertoggle.has{border-color:var(--accent);color:var(--accent);font-weight:700}
+  .searchrow .reset{margin-left:auto}
   .chartbox{height:260px}
   .legend{font-size:12px;gap:4px 10px}
   .toprow{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"lab amt" "track track";gap:4px 10px;padding:8px 6px}
@@ -172,13 +177,14 @@ footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);paddin
   </div>
 </header>
 
-<div class="filters" role="region" aria-label="Filters">
+<div class="filters collapsed" role="region" aria-label="Filters">
   <div class="fgroup opt" id="f-year"><span class="flabel">Year</span></div>
   <div class="fgroup opt" id="f-store"><span class="flabel">Store</span></div>
   <div class="fgroup opt" id="f-cat"><span class="flabel">Category</span></div>
   <div class="fgroup searchrow">
     <label class="flabel" for="q">Search</label>
-    <input id="q" class="search" type="search" placeholder="e.g. toilet paper, bulbs">
+    <input id="q" class="search" type="search" placeholder="e.g. toilet paper, bulbs" autocomplete="off" enterkeyhint="search">
+    <button class="chip filtertoggle" id="filterToggle" type="button" aria-expanded="false">Filters</button>
     <button class="chip active-group" id="monthChip" aria-pressed="true" title="Show all months"></button>
     <button class="chip active-group" id="groupChip" aria-pressed="true" title="Clear item filter"></button>
     <button class="reset" id="reset" type="button">Reset</button>
@@ -279,6 +285,7 @@ function refreshChips(){
   document.getElementById("backBtn").hidden=!state.month;
   document.getElementById("chartTitle").textContent=state.month?"Spending in "+MLONG(state.month):"Spending by month";
   document.getElementById("chartHint").textContent=state.month?("Each bar is one day · "+(TOUCH?"tap":"hover")+" for the breakdown"):(TOUCH?"Tap a month for the breakdown · swipe for older months":"Hover a month for the breakdown");
+  {const t=document.getElementById("filterToggle");if(t){const n=(state.year?1:0)+(state.stores.size<STORES.length?1:0)+(state.cats.size<CATS.length?1:0);t.textContent=n?`Filters (${n})`:"Filters";t.classList.toggle("has",!!n);}}
   const g=document.getElementById("groupChip");g.classList.toggle("on",!!state.group);g.textContent=state.group?state.group+"  ✕":"";
 }
 function yearChips(){const el=document.getElementById("f-year");el.querySelectorAll(".chip").forEach(b=>b.remove());const ys=[...new Set(R.map(r=>r.year))].sort();chipRow("f-year",[{v:0,label:"All"},...ys.map(y=>({v:y,label:String(y)}))],v=>v===state.year,v=>{state.year=v;state.month="";});}
@@ -287,6 +294,8 @@ const toggle=(set,v,all)=>{ if(set.size===all.length){set.clear();set.add(v);} e
 chipRow("f-store",STORES.map(s=>({v:s,label:s})),v=>state.stores.has(v),v=>toggle(state.stores,v,STORES));
 chipRow("f-cat",CATS.map(s=>({v:s,label:s})),v=>state.cats.has(v),v=>toggle(state.cats,v,CATS),true);
 document.getElementById("q").addEventListener("input",e=>{state.q=e.target.value.trim().toLowerCase();if(state.q&&state.group){state.group="";refreshChips();}render();});
+document.getElementById("filterToggle").onclick=()=>{const f=document.querySelector(".filters");const c=f.classList.toggle("collapsed");document.getElementById("filterToggle").setAttribute("aria-expanded",String(!c));};
+if(window.matchMedia("(max-width:640px)").matches)document.getElementById("q").placeholder="Search, e.g. bleach";
 document.getElementById("monthChip").onclick=document.getElementById("backBtn").onclick=()=>{state.month="";refreshChips();render();};
 document.getElementById("groupChip").onclick=()=>{state.group="";refreshChips();render();};
 document.getElementById("reset").onclick=()=>{state.year=0;state.stores=new Set(STORES);state.cats=new Set(CATS);state.q="";state.group="";state.month="";document.getElementById("q").value="";refreshChips();render();};
