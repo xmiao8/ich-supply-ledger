@@ -77,6 +77,7 @@ section{display:flex;flex-direction:column;gap:12px;min-width:0}
 .fbq{font-size:13.5px;color:var(--ink-2)}
 a.fbgo{text-decoration:none;font-weight:700}
 .fbgo.off{opacity:.6;cursor:default}
+[hidden]{display:none!important}
 .morebtn{align-self:center;padding:8px 18px}
 /* top items list */
 .toplist{display:flex;flex-direction:column;gap:4px}
@@ -355,7 +356,7 @@ function render(){
   const [k,dir]=state.sort; const keys=["date","store","item","qty","total","cat"];
   const sig=JSON.stringify([state.year,state.month,[...state.stores],[...state.cats],state.q,state.group,state.sort]);if(sig!==_sig){_sig=sig;SHOWN=40;}
   const sortedAll=rows.slice().sort((a,b)=>{const x=a[keys[k]]??-1,y=b[keys[k]]??-1;return (x>y?1:x<y?-1:0)*dir;});
-  const sorted=sortedAll.slice(0,SHOWN);_shownRows=sorted;const mb=document.getElementById("moreBtn");mb.hidden=sortedAll.length<=SHOWN;mb.textContent=`Show more (${sortedAll.length-SHOWN} left)`;
+  const sorted=sortedAll.slice(0,SHOWN);_shownRows=sorted;const mb=document.getElementById("moreBtn");mb.hidden=sortedAll.length<=SHOWN;{const left=sortedAll.length-SHOWN;mb.textContent=left>0?`Show ${Math.min(60,left)} more (${left} left)`:"";}
   document.querySelector("#ledger tbody").innerHTML=sorted.map((r,i)=>`<tr class="prow${r.ret?" ret":""}" data-i="${i}" tabindex="0" aria-expanded="false"><td class="date">${r.date}</td><td class="st">${esc(r.store)}</td><td class="item"><span class="n">${esc(r.item)}</span>${r.ret?'<span class="pill ret">returned</span>':""}</td><td class="num q">${r.qty??"–"}</td><td class="num tot">${money(r.total)}</td><td class="meta">${r.date} · ${esc(r.store)}${r.qty?" · qty "+r.qty:""} · ${esc(r.cat)}</td><td class="ct"><span class="catdot"><span class="sw" style="background:var(${CVAR[CATS.indexOf(r.cat)]})"></span>${esc(r.cat)}</span></td></tr>`).join("")||emptyRow();
   document.getElementById("rowcount").textContent=`${rows.length} rows · ${money(spent)} · ${TOUCH?"tap":"click"} an item to give feedback`;
   document.querySelectorAll("#ledger th button").forEach(b=>{const on=+b.dataset.k===k;b.textContent=b.textContent.replace(/ [▲▼]$/,"")+(on?(dir>0?" ▲":" ▼"):"");});
