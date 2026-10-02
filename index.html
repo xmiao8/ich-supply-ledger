@@ -75,6 +75,12 @@ section{display:flex;flex-direction:column;gap:12px;min-width:0}
 #ledger tr.fbrow td{padding:8px 12px 12px}
 .fbbox{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px}
 .fbq{font-size:13.5px;color:var(--ink-2)}
+.pill.fb{margin-left:8px;font-family:var(--f-mono);font-size:11px;border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:1px 7px;white-space:nowrap;vertical-align:middle}
+.fbhave{margin-bottom:8px}
+.fbsum{font-size:13.5px;color:var(--ink)}
+.fbcomments{margin:6px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink-2)}
+.fbcomments li{margin:2px 0}
+.fbdate{color:var(--ink-3);font-family:var(--f-mono);font-size:11px}
 a.fbgo{text-decoration:none;font-weight:700}
 .fbgo.off{opacity:.6;cursor:default}
 [hidden]{display:none!important}
@@ -262,6 +268,14 @@ let R=DATA.map(a=>({date:a[0],store:a[1],item:a[2],qty:a[3],total:a[4],cat:a[5],
 
 const BASE="https://docs.google.com/spreadsheets/d/e/2PACX-1vReRtto5r5bIijyphi1aLBWAbizFonBp68q2It_tpLf_jI4VHyxRwWXbz6xmdUaZF_O4Cap_T4Pdggc/pub?single=true&output=csv&gid=";
 const SOURCES=["3001","378352150"]; // "Public" tab first, then "All purchases"
+const FEEDBACK_GID="3002"; // "Feedback public" tab: date, item, rating, buy again, comments (no names)
+let FB={}; // item name (lowercased) -> [{date,rating,again,comment}]
+function toFeedback(csv){const rows=parseCSV(csv);const h=rows[0].map(x=>x.trim().toLowerCase());const iD=h.indexOf("date"),iI=h.indexOf("item"),iR=h.findIndex(x=>x.startsWith("how well")),iA=h.findIndex(x=>x.startsWith("should we")),iC=h.findIndex(x=>x.startsWith("comments"));
+  const out={};for(const r of rows.slice(1)){const item=(r[iI]||"").trim();if(!item)continue;const k=item.toLowerCase();(out[k]=out[k]||[]).push({date:(r[iD]||"").trim(),rating:+r[iR]||null,again:(r[iA]||"").trim(),comment:(r[iC]||"").trim()});}
+  for(const k in out)out[k].sort((a,b)=>b.date.localeCompare(a.date));return out;}
+async function loadFeedback(){try{const res=await fetch(BASE+FEEDBACK_GID,{cache:"no-store"});if(!res.ok)return null;const t=await res.text();if(!/^date,/i.test(t))return null;return toFeedback(t);}catch(e){return null;}}
+function fbFor(item){return FB[item.trim().toLowerCase()]||[];}
+function fbSummary(list){const rated=list.filter(x=>x.rating);const avg=rated.length?rated.reduce((s,x)=>s+x.rating,0)/rated.length:null;const yes=list.filter(x=>/^yes/i.test(x.again)).length,no=list.filter(x=>/^try/i.test(x.again)).length;return {n:list.length,avg,yes,no};}
 const GROUPS=[["Dishwasher chemicals",["auto-dish","dishwasher sanitizer","rinse aid","delimer"]],["Toilet paper",["toilet paper","bath tissue","jumbo roll"]],["Laundry detergent",["laundry detergent","launder-x","detergent sheets"]],["Trash bags",["trash bags"]],["Water filters",["watts"]],["Paper towels",["paper towels"]],["Spray bottles",["sprayer","spray bottles"]],["Dish soap",["dish soap","dish spray","dawn pro","powersuds"]],["Sponges & scrubbers",["sponge","scrubber"]],["Brushes",["brush"]],["Light bulbs",["bulb","fluorescent","a19"]],["Powder cleansers",["bon ami","ajax"]],["Vinegar",["vinegar"]],["Hand soap",["hand soap"]],["Gloves",["gloves"]],["Face masks",["face mask"]],["Winterizing",["window insulation","shrink","weatherstrip"]],["Smoke detectors & batteries",["smoke detector"]],["Dishwasher delimer",["delimer"]],["Foil, wrap & parchment",["foil","plastic wrap","parchment"]],["Drain opener",["drain opener"]],["Lint / drain strainers",["lint","strainer"]],["Floor cleaner & mops",["floor cleaner","mop"]],["Bleach",["bleach,","bleach ","ultra bleach"]],["Drum / bucket pumps",["pump"]],["Picture hangers & hooks",["picture","hook","hanging"]],["Brooms & dustpans",["broom","dustpan"]],["Door closers",["door closer"]],["Motion-sensor sockets",["motion"]],["Coffee-maker water filters",["cuisinart coffee","coffee makers"]],["Masking tape",["masking tape"]]];
 function groupOf(item){const l=item.toLowerCase();for(const [g,ks] of GROUPS){if(!ks.some(k=>l.includes(k)))continue;
   if(g==="Bleach"&&(l.includes("with bleach")||l.includes("resistant")))continue;if(g==="Spray bottles"&&l.includes("dish spray"))continue;
@@ -377,7 +391,7 @@ function render(){
   const sig=JSON.stringify([state.year,state.month,[...state.stores],[...state.cats],state.q,state.group,state.sort]);if(sig!==_sig){_sig=sig;SHOWN=40;}
   const sortedAll=rows.slice().sort((a,b)=>{const x=a[keys[k]]??-1,y=b[keys[k]]??-1;return (x>y?1:x<y?-1:0)*dir;});
   const sorted=sortedAll.slice(0,SHOWN);_shownRows=sorted;const mb=document.getElementById("moreBtn");mb.hidden=sortedAll.length<=SHOWN;{const left=sortedAll.length-SHOWN;mb.textContent=left>0?`Show ${Math.min(60,left)} more (${left} left)`:"";}
-  document.querySelector("#ledger tbody").innerHTML=sorted.map((r,i)=>`<tr class="prow${r.ret?" ret":""}" data-i="${i}" tabindex="0" aria-expanded="false"><td class="date">${r.date}</td><td class="st">${esc(r.store)}</td><td class="item"><span class="n">${esc(r.item)}</span>${r.ret?'<span class="pill ret">returned</span>':""}</td><td class="num q">${r.qty??"–"}</td><td class="num tot">${money(r.total)}</td><td class="meta">${r.date} · ${esc(r.store)}${r.qty?" · qty "+r.qty:""} · ${esc(r.cat)}</td><td class="ct"><span class="catdot"><span class="sw" style="background:var(${colorOf(r.cat)})"></span>${esc(r.cat)}</span></td></tr>`).join("")||emptyRow();
+  document.querySelector("#ledger tbody").innerHTML=sorted.map((r,i)=>`<tr class="prow${r.ret?" ret":""}" data-i="${i}" tabindex="0" aria-expanded="false"><td class="date">${r.date}</td><td class="st">${esc(r.store)}</td><td class="item"><span class="n">${esc(r.item)}</span>${r.ret?'<span class="pill ret">returned</span>':""}${(()=>{const f=fbFor(r.item);if(!f.length)return "";const sm=fbSummary(f);return `<span class="pill fb" title="${sm.n} review${sm.n>1?"s":""}">${sm.avg?"★ "+sm.avg.toFixed(1):"💬"} · ${sm.n}</span>`;})()}</td><td class="num q">${r.qty??"–"}</td><td class="num tot">${money(r.total)}</td><td class="meta">${r.date} · ${esc(r.store)}${r.qty?" · qty "+r.qty:""} · ${esc(r.cat)}</td><td class="ct"><span class="catdot"><span class="sw" style="background:var(${colorOf(r.cat)})"></span>${esc(r.cat)}</span></td></tr>`).join("")||emptyRow();
   document.getElementById("rowcount").textContent=`${rows.length} rows · ${money(spent)} · ${TOUCH?"tap":"click"} an item to give feedback`;
   document.querySelectorAll("#ledger th button").forEach(b=>{const on=+b.dataset.k===k;b.textContent=b.textContent.replace(/ [▲▼]$/,"")+(on?(dir>0?" ▲":" ▼"):"");});
 }
@@ -395,7 +409,12 @@ function toggleFeedback(tr){
   const r=_shownRows[+tr.dataset.i];if(!r)return;
   const url=feedbackURL(r.item);
   const fb=document.createElement("tr");fb.className="fbrow";
-  fb.innerHTML=`<td colspan="7"><div class="fbbox"><span class="fbq">Used this? Tell the house how it’s working out.</span>`+(url?`<a class="chip fbgo" href="${url}" target="_blank" rel="noopener">Give feedback on this item →</a>`:`<span class="chip fbgo off" aria-disabled="true">Feedback form coming soon</span>`)+`</div></td>`;
+  const list=fbFor(r.item);let shown="";
+  if(list.length){const sm=fbSummary(list);const parts=[];if(sm.avg)parts.push(`<b>★ ${sm.avg.toFixed(1)}</b> / 5`);parts.push(`${sm.n} review${sm.n>1?"s":""}`);if(sm.yes)parts.push(`${sm.yes} would buy again`);if(sm.no)parts.push(`${sm.no} say try something else`);
+    const comments=list.filter(x=>x.comment).slice(0,3).map(x=>`<li>“${esc(x.comment)}”<span class="fbdate">${x.date?" · "+x.date:""}</span></li>`).join("");
+    shown=`<div class="fbhave"><div class="fbsum">${parts.join(" · ")}</div>${comments?`<ul class="fbcomments">${comments}</ul>`:""}</div>`;}
+  else{const grp=r.group?Object.keys(FB).filter(k=>groupOf(k)===r.group&&k!==r.item.toLowerCase()).reduce((n,k)=>n+FB[k].length,0):0;shown=grp?`<div class="fbhave"><div class="fbsum muted">No reviews of this exact item yet · ${grp} review${grp>1?"s":""} of other ${esc(r.group.toLowerCase())} purchases</div></div>`:"";}
+  fb.innerHTML=`<td colspan="7">${shown}<div class="fbbox"><span class="fbq">${list.length?"Used this too? Add your take.":"Used this? Tell the house how it’s working out."}</span>`+(url?`<a class="chip fbgo" href="${url}" target="_blank" rel="noopener">Give feedback on this item →</a>`:`<span class="chip fbgo off" aria-disabled="true">Feedback form coming soon</span>`)+`</div></td>`;
   tr.after(fb);tr.setAttribute("aria-expanded","true");tr.classList.add("sel");
 }
 document.querySelector("#ledger tbody").addEventListener("click",e=>{if(e.target.closest("a"))return;const tr=e.target.closest("tr.prow");if(tr)toggleFeedback(tr);});
@@ -406,6 +425,7 @@ refreshChips();
 if(window.Chart){Chart.defaults.font.family=css("--f-body");}
 render();
 setStatus("Loading the latest purchases from the house sheet…");
+loadFeedback().then(f=>{if(f){FB=f;render();}});
 loadLive().then(recs=>{if(recs){R=recs;yearChips();storeChips();catChips();refreshChips();render();setStatus("Live from the house purchases sheet · "+recs.length+" items · loaded "+new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}));}else setStatus(location.protocol==="file:"?"Saved copy from Oct 1, 2026 \u00b7 live data loads once this page is on GitHub Pages":"Couldn\u2019t reach the house sheet, showing the copy saved on Oct 1, 2026.");});
 const rerender=()=>render();
 let _rw=window.innerWidth;window.addEventListener("resize",()=>{if(Math.abs(window.innerWidth-_rw)>40){_rw=window.innerWidth;clearTimeout(window._rt);window._rt=setTimeout(render,150);}});
