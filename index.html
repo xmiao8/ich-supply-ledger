@@ -329,8 +329,8 @@ let SHOWN=40,_sig="";
 /* Feedback form: paste the Google Form's pre-filled link here (Form ⋮ → Get pre-filled link, type ITEMNAME in the item question, Get link). */
 const FEEDBACK_PREFILL="https://docs.google.com/forms/d/1J8g1L9f_qKfjSLlrkrDwlUZcbvLofbyDxF2kZEA1v2A/viewform?usp=pp_url&entry.419120863=ITEMNAME";
 /* Suggestion form: SUGGEST_FORM is the form's link; SUGGEST_PREFILL is its pre-filled link with ITEMNAME in the item question. */
-const SUGGEST_FORM="";
-const SUGGEST_PREFILL="";
+const SUGGEST_FORM="https://docs.google.com/forms/d/1ydCqpvves8qAxOn9Oa6bbJILcZeWHQiAFznhVRm7IX0/viewform";
+const SUGGEST_PREFILL="https://docs.google.com/forms/d/1ydCqpvves8qAxOn9Oa6bbJILcZeWHQiAFznhVRm7IX0/viewform?usp=pp_url&entry.1649220853=ITEMNAME";
 function suggestURL(name){if(name&&SUGGEST_PREFILL)return SUGGEST_PREFILL.replace("ITEMNAME",encodeURIComponent(name));return SUGGEST_FORM;}
 {const b=document.getElementById("suggestBtn");if(b&&SUGGEST_FORM){b.href=SUGGEST_FORM;b.hidden=false;}}
 function feedbackURL(item){return FEEDBACK_PREFILL?FEEDBACK_PREFILL.replace("ITEMNAME",encodeURIComponent(item)):"";}
