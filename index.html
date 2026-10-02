@@ -40,7 +40,8 @@ p{margin:0}
 .lede{color:var(--ink-2);max-width:68ch}
 .muted{color:var(--ink-3);font-size:13px}
 header{display:flex;flex-direction:column;gap:10px}
-.terms{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.status{font-family:var(--f-mono);font-size:12px;color:var(--ink-3);margin:0}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
 .term-tag{font-family:var(--f-mono);font-size:12px;border:1px solid var(--rule);border-radius:999px;padding:3px 10px;color:var(--ink-2);background:var(--surface)}
 
 /* filters */
@@ -79,7 +80,7 @@ a.fbgo{text-decoration:none;font-weight:700}
 .fbgo.off{opacity:.6;cursor:default}
 [hidden]{display:none!important}
 .morebtn{align-self:center;padding:8px 18px}
-.suggestbtn{align-self:flex-start;text-decoration:none;font-weight:700;padding:8px 16px;margin-top:4px}
+.actbtn{text-decoration:none;font-weight:700;padding:8px 14px}
 /* top items list */
 .toplist{display:flex;flex-direction:column;gap:4px}
 .toprow{all:unset;cursor:pointer;display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) auto;align-items:center;gap:10px;padding:6px 8px;border-radius:8px}
@@ -171,13 +172,12 @@ footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);paddin
 <header>
   <span class="eyebrow">International Cooperative House · Supplies &amp; maintenance</span>
   <h1>ICH Supply Ledger</h1>
-  <p class="lede">What the house buys to keep ICH running: cleaning supplies, paper goods, laundry, kitchen basics and repair parts, from Amazon, Zoro, Lowe's, Menards, Nassco, Home Depot, Costco and Kavanaugh Restaurant Supply. Filter by year, store or category, pick an item in the top-ten list to see its purchases, and tap any purchase at the bottom to leave feedback on it.</p>
-  <div class="terms">
-    <span class="term-tag">Since Feb 2023</span>
-    <span class="term-tag">Paid from the house supplies &amp; maintenance accounts</span>
-    <span class="term-tag" id="dataStatus">Saved copy from Oct 1, 2026</span>
+  <p class="lede">Everything the house buys to keep ICH running, straight from the purchases sheet. Open any purchase to say how it's working out.</p>
+  <p class="status"><span id="dataStatus">Saved copy from Oct 1, 2026</span><span id="dataSpan"></span> · paid from the house supplies &amp; maintenance accounts</p>
+  <div class="actions">
+    <a class="chip actbtn" id="suggestBtn" href="#" target="_blank" rel="noopener" hidden>+ Suggest an item</a>
+    <a class="chip actbtn" id="feedbackBtn" href="#" target="_blank" rel="noopener" hidden>Give feedback</a>
   </div>
-  <a class="chip suggestbtn" id="suggestBtn" href="#" target="_blank" rel="noopener" hidden>+ Suggest something to buy</a>
 </header>
 
 <div class="filters collapsed" role="region" aria-label="Filters">
@@ -201,7 +201,7 @@ footer{color:var(--ink-3);font-size:13px;border-top:1px solid var(--rule);paddin
 </div>
 
 <section>
-  <div class="sec-head"><h2 id="chartTitle">Spending by month</h2><span class="muted"><span id="chartHint">Hover a month for the breakdown</span> <button class="reset" id="backBtn" type="button" hidden>← All months</button></span></div>
+  <div class="sec-head"><h2 id="chartTitle">Spending by month</h2><span class="muted"><span id="chartHint">Hover a month for the breakdown</span> <button class="chip" id="rangeChip" type="button" hidden>All months</button> <button class="reset" id="backBtn" type="button" hidden>← All months</button></span></div>
   <div class="panel">
     <div class="legend" id="catLegend"></div>
     <div class="chartscroll" id="mscroll"><div class="chartbox" id="mbox"><canvas id="monthly" role="img" aria-label="Stacked bar chart of monthly supply spending by category"></canvas></div></div>
@@ -251,7 +251,7 @@ function buildCats(){const tot=R.reduce((s,r)=>s+r.total,0)||1;const t={};R.forE
 /* Store list comes from the data itself, biggest spend first, so a new store in the sheet gets its own filter automatically. */
 let STORES=[];
 function storeList(){const t={};R.forEach(r=>{t[r.store]=(t[r.store]||0)+r.total;});return Object.keys(t).sort((a,b)=>t[b]-t[a]);}
-const state={month:"",year:0,stores:new Set(STORES),cats:new Set(CATS),q:"",group:"",sort:[0,-1]};
+const state={allMonths:false,month:"",year:0,stores:new Set(STORES),cats:new Set(CATS),q:"",group:"",sort:[0,-1]};
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const money=v=>"$"+v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const money0=v=>"$"+Math.round(v).toLocaleString("en-US");
@@ -283,6 +283,7 @@ async function loadLive(){for(const g of SOURCES){try{const res=await fetch(BASE
     const t=await res.text();if(!t.startsWith("Semester")&&!t.includes("Date,"))continue;const recs=toRecords(t);if(recs.length)return recs;}catch(e){}}return null;}
 R.forEach(r=>{r.group=groupOf(r.item);});
 function setStatus(s){const el=document.getElementById("dataStatus");if(el)el.textContent=s;}
+function renderSpan(){const el=document.getElementById("dataSpan");if(!el||!R.length)return;const first=R.reduce((m,r)=>r.date<m?r.date:m,R[0].date);el.textContent=" · "+R.length+" purchases since "+MLONG(first.slice(0,7)).replace(/^(\w{3})\w*/, "$1");}
 
 
 function chipRow(id,items,isOn,onClick,swatch){
@@ -299,7 +300,7 @@ function refreshChips(){
   const mc=document.getElementById("monthChip");mc.classList.toggle("on",!!state.month);mc.textContent=state.month?MLONG(state.month)+"  ✕":"";
   document.getElementById("backBtn").hidden=!state.month;
   document.getElementById("chartTitle").textContent=state.month?"Spending in "+MLONG(state.month):"Spending by month";
-  document.getElementById("chartHint").textContent=state.month?("Each bar is one day · "+(TOUCH?"tap":"hover")+" for the breakdown"):(TOUCH?"Tap a month for the breakdown · swipe for older months":"Hover a month for the breakdown");
+  document.getElementById("chartHint").textContent=state.month?("Each bar is one day · "+(TOUCH?"tap":"hover")+" for the breakdown"):(NARROW()?"Tap a bar for the category breakdown":"Hover a month for the breakdown");
   {const t=document.getElementById("filterToggle");if(t){const n=(state.year?1:0)+(state.stores.size<STORES.length?1:0)+(state.cats.size<CATS.length?1:0);t.textContent=n?`Filters (${n})`:"Filters";t.classList.toggle("has",!!n);}}
   const g=document.getElementById("groupChip");g.classList.toggle("on",!!state.group);g.textContent=state.group?state.group+"  ✕":"";
 }
@@ -314,6 +315,7 @@ catChips();
 document.getElementById("q").addEventListener("input",e=>{state.q=e.target.value.trim().toLowerCase();if(state.q&&state.group){state.group="";refreshChips();}render();});
 document.getElementById("filterToggle").onclick=()=>{const f=document.querySelector(".filters");const c=f.classList.toggle("collapsed");document.getElementById("filterToggle").setAttribute("aria-expanded",String(!c));};
 if(window.matchMedia("(max-width:640px)").matches)document.getElementById("q").placeholder="Search, e.g. bleach";
+document.getElementById("rangeChip").onclick=()=>{state.allMonths=!state.allMonths;refreshChips();render();};
 document.getElementById("monthChip").onclick=document.getElementById("backBtn").onclick=()=>{state.month="";refreshChips();render();};
 document.getElementById("groupChip").onclick=()=>{state.group="";refreshChips();render();};
 document.getElementById("reset").onclick=()=>{state.year=0;state.stores=new Set(STORES);state.cats=new Set(CATS);state.q="";state.group="";state.month="";document.getElementById("q").value="";refreshChips();render();};
@@ -332,7 +334,7 @@ const FEEDBACK_PREFILL="https://docs.google.com/forms/d/1J8g1L9f_qKfjSLlrkrDwlUZ
 const SUGGEST_FORM="https://docs.google.com/forms/d/1ydCqpvves8qAxOn9Oa6bbJILcZeWHQiAFznhVRm7IX0/viewform";
 const SUGGEST_PREFILL="https://docs.google.com/forms/d/1ydCqpvves8qAxOn9Oa6bbJILcZeWHQiAFznhVRm7IX0/viewform?usp=pp_url&entry.1649220853=ITEMNAME";
 function suggestURL(name){if(name&&SUGGEST_PREFILL)return SUGGEST_PREFILL.replace("ITEMNAME",encodeURIComponent(name));return SUGGEST_FORM;}
-{const b=document.getElementById("suggestBtn");if(b&&SUGGEST_FORM){b.href=SUGGEST_FORM;b.hidden=false;}}
+{const b=document.getElementById("suggestBtn");if(b&&SUGGEST_FORM){b.href=SUGGEST_FORM;b.hidden=false;}const f=document.getElementById("feedbackBtn");if(f&&FEEDBACK_PREFILL){f.href=FEEDBACK_PREFILL.split("?")[0];f.hidden=false;}}
 function feedbackURL(item){return FEEDBACK_PREFILL?FEEDBACK_PREFILL.replace("ITEMNAME",encodeURIComponent(item)):"";}
 const TOUCH=window.matchMedia("(hover: none)").matches;
 const NARROW=()=>window.matchMedia("(max-width:640px)").matches;
@@ -340,6 +342,7 @@ function activeFilterCount(){return (state.year?1:0)+(state.stores.size<STORES.l
 function base(){return{color:css("--ink-2"),grid:css("--grid"),surface:css("--surface"),ink:css("--ink"),gap:css("--gap"),font:css("--f-mono")||"monospace"};}
 
 function render(){
+  renderSpan();
   const rows=filtered();
   const spent=rows.reduce((s,r)=>s+r.total,0);
   document.getElementById("k-total").textContent=money0(spent);
@@ -347,19 +350,24 @@ function render(){
   document.getElementById("k-items").textContent=rows.length;
   const B=base();
   // monthly
+  const narrow=NARROW();
   let months=monthsAll(); if(state.year) months=months.filter(m=>m.startsWith(state.year));
+  const trimmed=narrow&&!state.year&&!state.allMonths&&months.length>12; if(trimmed) months=months.slice(-12);
+  {const rc=document.getElementById("rangeChip");rc.hidden=!(narrow&&!state.year&&monthsAll().length>12);rc.textContent=state.allMonths?"Last 12 months":"All months";}
   let keys_,labels;
   if(state.month){const [y,m]=state.month.split("-").map(Number);const n=new Date(y,m,0).getDate();keys_=Array.from({length:n},(_,i)=>state.month+"-"+String(i+1).padStart(2,"0"));labels=keys_.map(k=>String(+k.slice(8)));}
   else{keys_=months;labels=months.map(MLAB);}
-  const ds=CATS.map((c,i)=>({label:c,data:keys_.map(m=>+rows.filter(r=>r.cat===c&&r.date.startsWith(m)).reduce((s,r)=>s+r.total,0).toFixed(2)),backgroundColor:css(colorOf(c)),borderColor:B.surface,borderWidth:{top:1.5,bottom:0,left:0,right:0},borderSkipped:false,maxBarThickness:28,hidden:!state.cats.has(c)}));
+  const catSum=(c,m)=>+rows.filter(r=>r.cat===c&&r.date.startsWith(m)).reduce((s,r)=>s+r.total,0).toFixed(2);
+  const ds=narrow?[{label:"Total",data:keys_.map(m=>+rows.filter(r=>r.date.startsWith(m)).reduce((s,r)=>s+r.total,0).toFixed(2)),backgroundColor:css("--accent"),borderRadius:3,maxBarThickness:28}]:CATS.map((c,i)=>({label:c,data:keys_.map(m=>+rows.filter(r=>r.cat===c&&r.date.startsWith(m)).reduce((s,r)=>s+r.total,0).toFixed(2)),backgroundColor:css(colorOf(c)),borderColor:B.surface,borderWidth:{top:1.5,bottom:0,left:0,right:0},borderSkipped:false,maxBarThickness:28,hidden:!state.cats.has(c)}));
   const mcfg={type:"bar",data:{labels,datasets:ds},
     options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},
       onHover:(e,els)=>{e.native.target.style.cursor="default";},
-      plugins:{legend:{display:false},tooltip:{filter:it=>it.raw>0,itemSort:(a,b)=>b.raw-a.raw,callbacks:{title:its=>state.month?MLONG(state.month).split(" ")[0]+" "+its[0].label:its[0].label,label:it=>` ${it.dataset.label}: ${money(it.raw)}`,footer:its=>"Total "+money(its.reduce((s,i)=>s+i.raw,0))}}},
+      plugins:{legend:{display:false},tooltip:{filter:it=>it.raw>0,itemSort:(a,b)=>b.raw-a.raw,callbacks:{title:its=>state.month?MLONG(state.month).split(" ")[0]+" "+its[0].label:(narrow?MLONG(keys_[its[0].dataIndex]):its[0].label),label:it=>narrow?CATS.filter(c=>state.cats.has(c)).map(c=>[c,catSum(c,keys_[it.dataIndex])]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).map(x=>` ${x[0]}: ${money(x[1])}`):` ${it.dataset.label}: ${money(it.raw)}`,footer:its=>"Total "+money(narrow?its[0].raw:its.reduce((s,i)=>s+i.raw,0))}}},
       scales:{x:{stacked:true,grid:{display:false},ticks:{color:B.color,font:{family:B.font,size:11},maxRotation:0,autoSkip:true,autoSkipPadding:8}},
         y:{stacked:true,grid:{color:B.grid},border:{display:false},ticks:{color:B.color,font:{family:B.font,size:11},callback:v=>"$"+v}}}}};
   const mbox=document.getElementById("mbox"),msc=document.getElementById("mscroll");
-  mbox.style.width=(NARROW()&&!state.month&&labels.length>14)?(labels.length*24+60)+"px":"";
+  mbox.style.width=(narrow&&!state.month&&labels.length>14)?(labels.length*24+60)+"px":"";
+  document.getElementById("catLegend").hidden=narrow;
   if(NARROW()){mcfg.options.scales.x.ticks.autoSkipPadding=14;mcfg.options.scales.y.ticks.font.size=10;}
   if(monthly) monthly.destroy(); monthly=new Chart(document.getElementById("monthly"),mcfg);
   requestAnimationFrame(()=>{msc.scrollLeft=msc.scrollWidth;});
@@ -404,7 +412,7 @@ refreshChips();
 if(window.Chart){Chart.defaults.font.family=css("--f-body");}
 render();
 setStatus("Loading the latest purchases from the house sheet…");
-loadLive().then(recs=>{if(recs){R=recs;yearChips();storeChips();catChips();refreshChips();render();setStatus("Live from the house purchases sheet · "+recs.length+" items · loaded "+new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}));}else setStatus(location.protocol==="file:"?"Saved copy from Oct 1, 2026 \u00b7 live data loads once this page is on GitHub Pages":"Couldn\u2019t reach the house sheet, showing the copy saved on Oct 1, 2026.");});
+loadLive().then(recs=>{if(recs){R=recs;yearChips();storeChips();catChips();refreshChips();render();setStatus("Updated "+new Date().toLocaleString("en-US",{month:"short",day:"numeric"}));}else setStatus(location.protocol==="file:"?"Saved copy from Oct 1, 2026 \u00b7 live data loads once this page is on GitHub Pages":"Couldn\u2019t reach the house sheet, showing the copy saved on Oct 1, 2026.");});
 const rerender=()=>render();
 let _rw=window.innerWidth;window.addEventListener("resize",()=>{if(Math.abs(window.innerWidth-_rw)>40){_rw=window.innerWidth;clearTimeout(window._rt);window._rt=setTimeout(render,150);}});
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",rerender);
